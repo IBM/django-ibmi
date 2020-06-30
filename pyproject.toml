@@ -11,11 +11,11 @@ readme = "README.md"
 license = "Apache-2.0"
 keywords = ["django", "web framework", "ibm", "ibmi", "db2"]
 packages = [
-    {include = "ibm_db_django"}
+    {include = "django_ibmi"}
 ]
 
-[tool.poetry.plugin."django.db.backends"]
-ibm_db_django = "ibm_db_django"
+[tool.poetry.plugin."django_ibmi"]
+django_ibmi = "django_ibmi"
 
 [tool.poetry.dependencies]
 python = ">=2.7"
