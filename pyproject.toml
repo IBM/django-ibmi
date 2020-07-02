@@ -1,23 +1,33 @@
 [tool.poetry]
 name = "django-ibmi"
 version = "0.1.0-dev"
-description = "'Db2 for i support for Django framework'"
+description = "Db2 for i adapter for Django"
 authors = [
     "Naveen Ram  <naveen.ram@ibm.com>",
     "Kevin Adler <kadler@us.ibm.com>"
 ]
-maintainer='IBM i Open Source Software Team'
 readme = "README.md"
 license = "Apache-2.0"
 keywords = ["django", "web framework", "ibm", "ibmi", "db2"]
+classifiers =[
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Framework :: Django :: 2.2",
+    "Framework :: Django :: 3.0",
+    "Framework :: Django :: 3.1",
+]
 packages = [
     {include = "ibm_db_django"}
 ]
 
 [tool.poetry.dependencies]
-python = ">=2.7"
-Django = ">=2.0.0"
+python = ">=3.5"
+Django = ">=2.2"
 pyodbc = ">=4.0"
+
+[tool.poetry.plugins."django.db.backends"]
+ibm_db_django = "ibm_db_django"
 
 [tool.poetry.dev-dependencies]
 
