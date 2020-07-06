@@ -72,6 +72,8 @@ if (djangoVersion[0:2] >= (1, 5)):
 if ( djangoVersion[0:2] >= ( 1, 7 )):
     from ibm_db_django.schemaEditor import DB2SchemaEditor
 
+dbms_name = 'dbms_name'
+
 DatabaseError = Database.DatabaseError
 IntegrityError = Database.IntegrityError
 if ( djangoVersion[0:2] >= ( 1, 6 )):
@@ -82,9 +84,6 @@ if ( djangoVersion[0:2] >= ( 1, 6 )):
     InternalError = Database.InternalError
     ProgrammingError = Database.ProgrammingError
     NotSupportedError = Database.NotSupportedError
-    
-
-dbms_name = 'dbms_name'
     
 class DatabaseFeatures( BaseDatabaseFeatures ):    
     can_use_chunked_reads = True
@@ -178,7 +177,7 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
             self.features = DatabaseFeatures( self )
         self.creation = DatabaseCreation( self )
         
-        if( djangoVersion[0:2] >= ( 1, 8 ) ): 
+        if( djangoVersion[0:2] >= ( 1, 8 ) ):
             self.data_types=self.creation.data_types
             self.data_type_check_constraints=self.creation.data_type_check_constraints
         
@@ -187,7 +186,6 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
             self.validation = DatabaseValidation()
         else:
             self.validation = DatabaseValidation( self )
-        self.databaseWrapper = DatabaseWrapper()
     
     # Method to check if connection is live or not.
     def __is_connection( self ):
@@ -288,12 +286,8 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
     
     # To get new connection from Database
     def get_new_connection(self, conn_params):
-        connection = self.databaseWrapper.get_new_connection(conn_params)
-        if getattr(connection, dbms_name) == 'DB2':
-            self.features.has_bulk_insert = False
-        else:
-            self.features.has_bulk_insert = True
-        return connection
+        self.features.has_bulk_insert = True
+        return Database.connect(conn_params)
         
     # Over-riding _cursor method to return DB2 cursor.
     if ( djangoVersion[0:2] < ( 1, 6 )):
@@ -301,29 +295,31 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
             if not self.__is_connection():
                 if ( djangoVersion[0:2] <= ( 1, 0 ) ):
                     self.settings = settings
-                    
+
                 self.connection = self.get_new_connection(self.get_connection_params())
                 cursor = self.databaseWrapper._cursor(self.connection)
-                
+
                 if( djangoVersion[0:3] <= ( 1, 2, 2 ) ):
                     connection_created.send( sender = self.__class__ )
                 else:
                     connection_created.send( sender = self.__class__, connection = self )
             else:
-                cursor = self.databaseWrapper._cursor( self.connection )  
+                cursor = self.databaseWrapper._cursor( self.connection )
             return cursor
     else:
         def create_cursor( self , name = None):
-            return self.databaseWrapper._cursor( self.connection )
-            
+            return DB2CursorWrapper(self.connection)
+
         def init_connection_state( self ):
             pass
-        
+
         def is_usable(self):
-            if self.databaseWrapper.is_active( self.connection ):
-                return True
-            else:
+            try:
+                self.connection.ping()
+            except Database.Error:
                 return False
+            else:
+                return True
             
     def _set_autocommit(self, autocommit):
         self.connection.set_autocommit( autocommit )
@@ -332,114 +328,11 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
         if( djangoVersion[0:2] >= ( 1, 5 ) ):
             self.validate_thread_sharing()
         if self.connection is not None:
-            self.databaseWrapper.close( self.connection )
+            self.connection.close()
             self.connection = None
-        
-    def get_server_version( self ):
-        if not self.connection:
-            self.cursor()
-        return self.databaseWrapper.get_server_version( self.connection )
     
     def schema_editor(self, *args, **kwargs):
         return DB2SchemaEditor(self, *args, **kwargs)
-
-DatabaseError = Database.DatabaseError
-IntegrityError = Database.IntegrityError
-if (djangoVersion[0:2] >= (1, 6)):
-    Error = Database.Error
-    InterfaceError = Database.InterfaceError
-    DataError = Database.DataError
-    OperationalError = Database.OperationalError
-    InternalError = Database.InternalError
-    ProgrammingError = Database.ProgrammingError
-    NotSupportedError = Database.NotSupportedError
-
-
-class DatabaseWrapper(object):
-    # Get new database connection for non persistance connection
-    def get_new_connection(self, kwargs):
-        SchemaFlag = False
-        kwargsKeys = kwargs.keys()
-        if (kwargsKeys.__contains__('port') and
-                kwargsKeys.__contains__('host')):
-            kwargs[
-                'dsn'] = "DATABASE=%s;HOSTNAME=%s;PORT=%s;PROTOCOL=TCPIP;" % (
-                kwargs.get('database'),
-                kwargs.get('host'),
-                kwargs.get('port')
-            )
-        else:
-            kwargs['dsn'] = kwargs.get('database')
-
-        if (kwargsKeys.__contains__('currentschema')):
-            kwargs['dsn'] += "CurrentSchema=%s;" % (kwargs.get('currentschema'))
-            currentschema = kwargs.get('currentschema')
-            SchemaFlag = True
-            del kwargs['currentschema']
-
-        if (kwargsKeys.__contains__('security')):
-            kwargs['dsn'] += "security=%s;" % (kwargs.get('security'))
-            del kwargs['security']
-
-        if (kwargsKeys.__contains__('sslclientkeystoredb')):
-            kwargs['dsn'] += "SSLCLIENTKEYSTOREDB=%s;" % (
-                kwargs.get('sslclientkeystoredb'))
-            del kwargs['sslclientkeystoredb']
-
-        if (kwargsKeys.__contains__('sslclientkeystoredbpassword')):
-            kwargs['dsn'] += "SSLCLIENTKEYSTOREDBPASSWORD=%s;" % (
-                kwargs.get('sslclientkeystoredbpassword'))
-            del kwargs['sslclientkeystoredbpassword']
-
-        if (kwargsKeys.__contains__('sslclientkeystash')):
-            kwargs['dsn'] += "SSLCLIENTKEYSTASH=%s;" % (
-                kwargs.get('sslclientkeystash'))
-            del kwargs['sslclientkeystash']
-
-        if (kwargsKeys.__contains__('sslservercertificate')):
-            kwargs['dsn'] += "SSLSERVERCERTIFICATE=%s;" % (
-                kwargs.get('sslservercertificate'))
-            del kwargs['sslservercertificate']
-
-        # Before Django 1.6, autocommit was turned OFF
-        if (djangoVersion[0:2] >= (1, 6)):
-            conn_options = {
-                Database.SQL_ATTR_AUTOCOMMIT: Database.SQL_AUTOCOMMIT_ON}
-        else:
-            conn_options = {
-                Database.SQL_ATTR_AUTOCOMMIT: Database.SQL_AUTOCOMMIT_OFF}
-        kwargs['conn_options'] = conn_options
-        if kwargsKeys.__contains__('options'):
-            kwargs.update(kwargs.get('options'))
-            del kwargs['options']
-        if kwargsKeys.__contains__('port'):
-            del kwargs['port']
-
-        pconnect_flag = False
-        if kwargsKeys.__contains__('PCONNECT'):
-            pconnect_flag = kwargs['PCONNECT']
-            del kwargs['PCONNECT']
-
-        if pconnect_flag:
-            connection = Database.pconnect(**kwargs)
-        else:
-            connection = Database.connect(**kwargs)
-        connection.autocommit = connection.set_autocommit
-
-        if SchemaFlag:
-            schema = connection.set_current_schema(currentschema)
-
-        return connection
-
-    def is_active(self, connection=None):
-        return Database.ibm_db.active(connection.conn_handler)
-
-    # Over-riding _cursor method to return DB2 cursor.
-    def _cursor(self, connection):
-        return DB2CursorWrapper(connection)
-
-    def close(self, connection):
-        connection.close()
 
     def get_server_version(self, connection):
         self.connection = connection
