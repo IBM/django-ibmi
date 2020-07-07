@@ -20,41 +20,32 @@
 DB2 database backend for Django.
 Requires: ibm_db_dbi (http://pypi.python.org/pypi/ibm_db) for python
 """
-import sys
+import copy
 import datetime
+import re
+import sys
+import warnings
+import six
 
 from django.core.exceptions import ImproperlyConfigured
-
-# Importing class from base module of django.db.backends
-
-try:
-    from django.db.backends import BaseDatabaseFeatures
-except ImportError:
-    from django.db.backends.base.features import BaseDatabaseFeatures
-
-try:
-    from django.db.backends import BaseDatabaseWrapper
-except ImportError:
-    from django.db.backends.base.base import BaseDatabaseWrapper
+from django.db import IntegrityError, utils, ProgrammingError, DatabaseError
+from django.db.backends.base.base import BaseDatabaseWrapper
+from django.db.backends.base.validation import BaseDatabaseValidation
+from django.db.backends.base.features import BaseDatabaseFeatures
+from django.utils import timezone
+from django.conf import settings
 
 try:
-    from django.db.backends import BaseDatabaseValidation
-except ImportError:
-    from django.db.backends.base.validation import BaseDatabaseValidation
+    import pyodbc as Database
+except ImportError as err:
+    raise ImproperlyConfigured
 
-from django.db.backends.signals import connection_created
+from .client import DatabaseClient
+from .creation import DatabaseCreation
+from .introspection import DatabaseIntrospection
+from .operations import DatabaseOperations
+from .schemaEditor import DB2SchemaEditor
 
-
-
-
-# Importing internal classes from ibm_db_django package.
-from ibm_db_django.client import DatabaseClient
-from ibm_db_django.creation import DatabaseCreation
-from ibm_db_django.introspection import DatabaseIntrospection
-from ibm_db_django.operations import DatabaseOperations
-import pyodbc as Database
-
-from ibm_db_django.schemaEditor import DB2SchemaEditor
 
 dbms_name = 'dbms_name'
 
