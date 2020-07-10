@@ -1,7 +1,7 @@
 # +--------------------------------------------------------------------------+
 # |  Licensed Materials - Property of IBM                                    |
 # |                                                                          |
-# | (C) Copyright IBM Corporation 2009-2018.                                      |
+# | (C) Copyright IBM Corporation 2009-2018.                                 |
 # +--------------------------------------------------------------------------+
 # | This module complies with Django 1.0 and is                              |
 # | Licensed under the Apache License, Version 2.0 (the "License");          |
@@ -20,57 +20,47 @@
 This module implements command line interface for DB2 through Django.
 """
 
-try:
-    from django.db.backends import BaseDatabaseClient
-except ImportError:
-    from django.db.backends.base.client import BaseDatabaseClient
-
-from django import VERSION as djangoVersion
-import types
-
+import pyodbc
+from django.db.backends.base.client import BaseDatabaseClient
 import os
+import subprocess
 
-class DatabaseClient( BaseDatabaseClient ):
-    
-    #Over-riding base method to provide shell support for DB2 through Django.
-    def runshell( self ):
-        if ( djangoVersion[0:2] <= ( 1, 0 ) ):
-            from django.conf import settings
-            database_name = settings.DATABASE_NAME
-            database_user = settings.DATABASE_USER
-            database_password = settings.DATABASE_PASSWORD
-        elif ( djangoVersion[0:2] <= ( 1, 1 ) ):
-            settings_dict = self.connection.settings_dict
-            database_name = settings_dict['DATABASE_NAME']
-            database_user = settings_dict['DATABASE_USER']
-            database_password = settings_dict['DATABASE_PASSWORD']
-        else:
-            settings_dict = self.connection.settings_dict
-            database_name = settings_dict['NAME']
-            database_user = settings_dict['USER']
-            database_password = settings_dict['PASSWORD']
-            
-        cmdArgs = ["db2"]
-        
-        if ( os.name == 'nt' ):
-            cmdArgs += ["db2 connect to %s" % database_name]
-        else:
-            cmdArgs += ["connect to %s" % database_name]
-        if sys.version_info.major >= 3:
-            basestring = str
-        else:
-            basestring = basestring
 
-        if ( isinstance( database_user, basestring ) and 
-            ( database_user != '' ) ):
-            cmdArgs += ["user %s" % database_user]
-            
-            if ( isinstance( database_password, basestring ) and 
-                ( database_password != '' ) ):
-                cmdArgs += ["using %s" % database_password]
-                
-        # db2cmd is the shell which is required to run db2 commands on windows.
-        if ( os.name == 'nt' ):
-            os.execvp( 'db2cmd', cmdArgs )
+class DatabaseClient(BaseDatabaseClient):
+    def runshell(self):
+        settings_dict = self.connection.settings_dict
+        user = settings_dict['USER']
+        password = settings_dict['PASSWORD']
+        system = settings_dict['NAME']
+        options = settings_dict['OPTIONS']
+        driver = options['driver']
+        if os.name == 'nt':
+            cnxn = pyodbc.connect(
+                f"SYSTEM={system};UID={user};PWD={password};DRIVER={driver}")
+            cursor = cnxn.cursor()
+            while True:
+                query = input("SQL> ")
+                if query == "exit":
+                    break
+                result = None
+                try:
+                    result = cursor.execute(query)
+                except ConnectionError as e:
+                    print("An error occurred on connection")
+                except KeyboardInterrupt:
+                    pass
+
+                try:
+                    print(result.fetchall())
+                except pyodbc.ProgrammingError as e:
+                    pass
+
+            cursor.close()
+            cnxn.close()
         else:
-            os.execvp( 'db2', cmdArgs )
+            args = ['%s -v %s %s %s' %
+                    ('isql', system, user, password)]
+            try:
+                subprocess.call(args, shell=True)
+            except KeyboardInterrupt:
+                pass
