@@ -33,10 +33,7 @@ from django.db.backends.utils import truncate_name
 from django.db.models.fields.related import ManyToManyField
 from django.db.utils import ProgrammingError
 from django import VERSION as djangoVersion
-if not _IS_JYTHON:
-    import ibm_db_dbi as Database
-else:
-    from com.ziclix.python.sql import zxJDBC as Database
+import pyodbc as Database
 Error = Database.Error
 
 class DB2SchemaEditor(BaseDatabaseSchemaEditor):

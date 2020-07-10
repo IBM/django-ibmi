@@ -17,17 +17,8 @@
 # +--------------------------------------------------------------------------+
 from collections import namedtuple
 import sys
-_IS_JYTHON = sys.platform.startswith( 'java' )
 
-if not _IS_JYTHON:
-    try:    
-        # Import IBM_DB wrapper ibm_db_dbi
-        import ibm_db_dbi as Database
-        #from Database import DatabaseError
-    except ImportError as e:
-        raise ImportError( "ibm_db module not found. Install ibm_db module from http://code.google.com/p/ibm-db/. Error: %s" % e )
-else:
-    from com.ziclix.python.sql import zxJDBC
+import pyodbc as Database
 
 try:
     from django.db.backends import BaseDatabaseIntrospection, FieldInfo
@@ -53,34 +44,10 @@ class DatabaseIntrospection( BaseDatabaseIntrospection ):
             Database.DATE :             "DateField",
             Database.TIME :             "TimeField",
             Database.DATETIME :         "DateTimeField",
-        }    
+        }
         if(djangoVersion[0:2] > (1, 1)):
             data_types_reverse[Database.BINARY] = "BinaryField"
             data_types_reverse[Database.BIGINT] = "BigIntegerField"
-        else:
-            data_types_reverse[Database.BIGINT] = "IntegerField"
-    else:
-        data_types_reverse = {
-            zxJDBC.CHAR:                "CharField",
-            zxJDBC.BIGINT:              "BigIntegerField",
-            zxJDBC.BINARY:              "BinaryField",
-            zxJDBC.BIT:                 "SmallIntegerField",
-            zxJDBC.BLOB:                "BinaryField",
-            zxJDBC.CLOB:                "TextField",
-            zxJDBC.DATE:                "DateField",
-            zxJDBC.DECIMAL:             "DecimalField",
-            zxJDBC.DOUBLE:              "FloatField",
-            zxJDBC.FLOAT:               "FloatField",
-            zxJDBC.INTEGER:             "IntegerField",
-            zxJDBC.LONGVARCHAR:         "TextField",
-            zxJDBC.LONGVARBINARY:       "ImageField",
-            zxJDBC.NUMERIC:             "DecimalField",
-            zxJDBC.REAL:                "FloatField",
-            zxJDBC.SMALLINT:            "SmallIntegerField",
-            zxJDBC.VARCHAR:             "CharField",
-            zxJDBC.TIMESTAMP:           "DateTimeField",
-            zxJDBC.TIME:                "TimeField",
-        }
      
     def get_field_type(self, data_type, description):
         if (djangoVersion[0:2] < ( 2, 0) ): 
