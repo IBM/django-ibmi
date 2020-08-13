@@ -52,27 +52,6 @@ TODO
 
 TODO
 
-# Testing 
-```
- * Follow steps above to setup up Django with the django-ibmi adapter
-   
- * Change USE_TZ to False
- 
- * RUN python manage.py migrate
- 
- * In the tuple INSTALLED_APPS in settings.py add the following lines:
-   {{{
-   'django.contrib.flatpages',
-   'django.contrib.redirects',
-   'django.contrib.comments',
-   'django.contrib.admin',
-   }}}
- * Next step is to run a simple test suite. To do this just execute following command in the project we created earlier:
-   {{{
-   $ python manage.py test #for Django-1.5.x or older
-   $ Python manage.py test django.contrib.auth 
-   }}} 
-```
 # Database Transactions 
 
  *  Django by default executes without transactions i.e. in auto-commit mode. This default is generally not what you want in web-applications. [http://docs.djangoproject.com/en/dev/topics/db/transactions/ Remember to turn on transaction support in Django]
