@@ -49,7 +49,6 @@ from django_ibmi.creation import DatabaseCreation
 from django_ibmi.introspection import DatabaseIntrospection
 from django_ibmi.operations import DatabaseOperations
 
-import django_ibmi.pybase as Base
 import pyodbc
 
     
@@ -58,6 +57,21 @@ from django import VERSION as djangoVersion
 
 if ( djangoVersion[0:2] >= ( 1, 7 )):
     from django_ibmi.schemaEditor import DB2SchemaEditor
+
+import datetime
+# For checking django's version
+from django import VERSION as djangoVersion
+
+if (djangoVersion[0:2] > (1, 1)):
+    from django.db import utils
+if (djangoVersion[0:2] >= (1, 4)):
+    from django.utils import timezone
+    from django.conf import settings
+    import warnings
+if (djangoVersion[0:2] >= (1, 5)):
+    from django.utils.encoding import force_bytes, force_text
+    from django.utils import six
+    import re
 
 DatabaseError = pyodbc.DatabaseError
 IntegrityError = pyodbc.IntegrityError
@@ -174,7 +188,6 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
             self.validation = DatabaseValidation()
         else:
             self.validation = DatabaseValidation( self )
-        self.databaseWrapper = Base.DatabaseWrapper()
     
     # Method to check if connection is live or not.
     def __is_connection( self ):
@@ -275,7 +288,68 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
     
     # To get new connection from Database
     def get_new_connection(self, conn_params):
-        connection = self.databaseWrapper.get_new_connection(conn_params)
+        SchemaFlag = False
+        kwargs = conn_params
+        kwargsKeys = kwargs.keys()
+        if (kwargsKeys.__contains__('port') and
+                kwargsKeys.__contains__('host')):
+            kwargs[
+                'dsn'] = "DATABASE=%s;HOSTNAME=%s;PORT=%s;PROTOCOL=TCPIP;" % (
+                kwargs.get('database'),
+                kwargs.get('host'),
+                kwargs.get('port')
+            )
+        else:
+            kwargs['dsn'] = kwargs.get('database')
+
+        if (kwargsKeys.__contains__('currentschema')):
+            kwargs['dsn'] += "CurrentSchema=%s;" % (kwargs.get('currentschema'))
+            currentschema = kwargs.get('currentschema')
+            SchemaFlag = True
+            del kwargs['currentschema']
+
+        if (kwargsKeys.__contains__('security')):
+            kwargs['dsn'] += "security=%s;" % (kwargs.get('security'))
+            del kwargs['security']
+
+        if (kwargsKeys.__contains__('sslclientkeystoredb')):
+            kwargs['dsn'] += "SSLCLIENTKEYSTOREDB=%s;" % (
+                kwargs.get('sslclientkeystoredb'))
+            del kwargs['sslclientkeystoredb']
+
+        if (kwargsKeys.__contains__('sslclientkeystoredbpassword')):
+            kwargs['dsn'] += "SSLCLIENTKEYSTOREDBPASSWORD=%s;" % (
+                kwargs.get('sslclientkeystoredbpassword'))
+            del kwargs['sslclientkeystoredbpassword']
+
+        if (kwargsKeys.__contains__('sslclientkeystash')):
+            kwargs['dsn'] += "SSLCLIENTKEYSTASH=%s;" % (
+                kwargs.get('sslclientkeystash'))
+            del kwargs['sslclientkeystash']
+
+        if (kwargsKeys.__contains__('sslservercertificate')):
+            kwargs['dsn'] += "SSLSERVERCERTIFICATE=%s;" % (
+                kwargs.get('sslservercertificate'))
+            del kwargs['sslservercertificate']
+
+        kwargs['conn_options'] = conn_options
+        if kwargsKeys.__contains__('options'):
+            kwargs.update(kwargs.get('options'))
+            del kwargs['options']
+        if kwargsKeys.__contains__('port'):
+            del kwargs['port']
+
+        pconnect_flag = False
+        if kwargsKeys.__contains__('PCONNECT'):
+            pconnect_flag = kwargs['PCONNECT']
+            del kwargs['PCONNECT']
+
+        connection = pyodbc.connect(**kwargs)
+        connection.autocommit = connection.set_autocommit
+
+        if SchemaFlag:
+            # TODO implement set_current_schema
+            schema = connection.set_current_schema(currentschema)
         self.features.has_bulk_insert = True
         return connection
         
@@ -287,27 +361,25 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
                     self.settings = settings
                     
                 self.connection = self.get_new_connection(self.get_connection_params())
-                cursor = self.databaseWrapper._cursor(self.connection)
+                cursor = DB2CursorWrapper(self.connection)
                 
                 if( djangoVersion[0:3] <= ( 1, 2, 2 ) ):
                     connection_created.send( sender = self.__class__ )
                 else:
                     connection_created.send( sender = self.__class__, connection = self )
             else:
-                cursor = self.databaseWrapper._cursor( self.connection )  
+                cursor = DB2CursorWrapper(self.connection)
             return cursor
     else:
         def create_cursor( self , name = None):
-            return self.databaseWrapper._cursor( self.connection )
+            return DB2CursorWrapper(self.connection)
             
         def init_connection_state( self ):
             pass
-        
+
         def is_usable(self):
-            if self.databaseWrapper.is_active( self.connection ):
-                return True
-            else:
-                return False
+            # Implemented incorrectly
+            pass
             
     def _set_autocommit(self, autocommit):
         self.connection.autocommit = autocommit
@@ -316,17 +388,219 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
         if( djangoVersion[0:2] >= ( 1, 5 ) ):
             self.validate_thread_sharing()
         if self.connection is not None:
-            self.databaseWrapper.close( self.connection )
+            self.connection.close()
             self.connection = None
         
     def get_server_version( self ):
         if not self.connection:
             self.cursor()
-        return self.databaseWrapper.get_server_version( self.connection )
+        return tuple(int(version) for version in
+                     self.connection.server_info()[1].split("."))
     
     def schema_editor(self, *args, **kwargs):
         return DB2SchemaEditor(self, *args, **kwargs)
-   
-    
-    
-            
+
+
+class DB2CursorWrapper(pyodbc.Cursor):
+    """
+    This is the wrapper around pyodbc in order to support format parameter style
+    pyodbc supports qmark, where as Django support format style,
+    hence this conversion is required.
+    """
+
+    def __init__(self, connection):
+        super(DB2CursorWrapper, self).__init__(connection.conn_handler,
+                                               connection)
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        row = self.fetchone()
+        if row == None:
+            raise StopIteration
+        return row
+
+    def _create_instance(self, connection):
+        return DB2CursorWrapper(connection)
+
+    def _format_parameters(self, parameters):
+        parameters = list(parameters)
+        for index in range(len(parameters)):
+            # With raw SQL queries, datetimes can reach this function
+            # without being converted by DateTimeField.get_db_prep_value.
+            if settings.USE_TZ and isinstance(parameters[index],
+                                              datetime.datetime):
+                param = parameters[index]
+                if timezone.is_naive(param):
+                    warnings.warn(u"Received a naive datetime (%s)"
+                                  u" while time zone support is active." % param,
+                                  RuntimeWarning)
+                    default_timezone = timezone.get_default_timezone()
+                    param = timezone.make_aware(param, default_timezone)
+                param = param.astimezone(timezone.utc).replace(tzinfo=None)
+                parameters[index] = param
+        return tuple(parameters)
+
+    # Over-riding this method to modify SQLs which contains format parameter to qmark.
+    def execute(self, operation, parameters=()):
+        if (djangoVersion[0:2] >= (2, 0)):
+            operation = str(operation)
+        try:
+            if operation.find('ALTER TABLE') == 0 and getattr(self.connection,
+                                                              dbms_name) != 'DB2':
+                doReorg = 1
+            else:
+                doReorg = 0
+            if operation.count("db2regexExtraField(%s)") > 0:
+                operation = operation.replace("db2regexExtraField(%s)", "")
+                operation = operation % parameters
+                parameters = ()
+            if operation.count("%s") > 0:
+                operation = operation % (tuple("?" * operation.count("%s")))
+            if (djangoVersion[0:2] >= (1, 4)):
+                parameters = self._format_parameters(parameters)
+
+            if (djangoVersion[0:2] <= (1, 1)):
+                if (doReorg == 1):
+                    super(DB2CursorWrapper, self).execute(operation, parameters)
+                    return self._reorg_tables()
+                else:
+                    return super(DB2CursorWrapper, self).execute(operation,
+                                                                 parameters)
+            else:
+                try:
+                    if (doReorg == 1):
+                        super(DB2CursorWrapper, self).execute(operation,
+                                                              parameters)
+                        return self._reorg_tables()
+                    else:
+                        return super(DB2CursorWrapper, self).execute(operation,
+                                                                     parameters)
+                except IntegrityError as e:
+                    if (djangoVersion[0:2] >= (1, 5)):
+                        six.reraise(utils.IntegrityError, utils.IntegrityError(
+                            *tuple(six.PY3 and e.args or (e._message,))),
+                                    sys.exc_info()[2])
+                        raise
+                    else:
+                        raise utils.IntegrityError, utils.IntegrityError(
+                            *tuple(e)), sys.exc_info()[2]
+
+                except ProgrammingError as e:
+                    if (djangoVersion[0:2] >= (1, 5)):
+                        six.reraise(utils.ProgrammingError,
+                                    utils.ProgrammingError(*tuple(
+                                        six.PY3 and e.args or (e._message,))),
+                                    sys.exc_info()[2])
+                        raise
+                    else:
+                        raise utils.ProgrammingError, utils.ProgrammingError(
+                            *tuple(e)), sys.exc_info()[2]
+                except DatabaseError as e:
+                    if (djangoVersion[0:2] >= (1, 5)):
+                        six.reraise(utils.DatabaseError, utils.DatabaseError(
+                            *tuple(six.PY3 and e.args or (e._message,))),
+                                    sys.exc_info()[2])
+                        raise
+                    else:
+                        raise utils.DatabaseError, utils.DatabaseError(
+                            *tuple(e)), sys.exc_info()[2]
+        except (TypeError):
+            return None
+
+    # Over-riding this method to modify SQLs which contains format parameter to qmark.
+    def executemany(self, operation, seq_parameters):
+        try:
+            if operation.count("db2regexExtraField(%s)") > 0:
+                raise ValueError("Regex not supported in this operation")
+            if operation.count("%s") > 0:
+                operation = operation % (tuple("?" * operation.count("%s")))
+            if (djangoVersion[0:2] >= (1, 4)):
+                seq_parameters = [self._format_parameters(parameters) for
+                                  parameters in seq_parameters]
+
+            if (djangoVersion[0:2] <= (1, 1)):
+                return super(DB2CursorWrapper, self).executemany(operation,
+                                                                 seq_parameters)
+            else:
+                try:
+                    return super(DB2CursorWrapper, self).executemany(operation,
+                                                                     seq_parameters)
+                except IntegrityError as e:
+                    if (djangoVersion[0:2] >= (1, 5)):
+                        six.reraise(utils.IntegrityError, utils.IntegrityError(
+                            *tuple(six.PY3 and e.args or (e._message,))),
+                                    sys.exc_info()[2])
+                        raise
+                    else:
+                        raise utils.IntegrityError, utils.IntegrityError(
+                            *tuple(e)), sys.exc_info()[2]
+                except DatabaseError as e:
+                    if (djangoVersion[0:2] >= (1, 5)):
+                        six.reraise(utils.DatabaseError, utils.DatabaseError(
+                            *tuple(six.PY3 and e.args or (e._message,))),
+                                    sys.exc_info()[2])
+                        raise
+                    else:
+                        raise utils.DatabaseError, utils.DatabaseError(
+                            *tuple(e)), sys.exc_info()[2]
+        except (IndexError, TypeError):
+            return None
+
+    # table reorganization method
+    def _reorg_tables(self):
+        checkReorgSQL = "select TABSCHEMA, TABNAME from SYSIBMADM.ADMINTABINFO where REORG_PENDING = 'Y'"
+        res = []
+        reorgSQLs = []
+        parameters = ()
+        super(DB2CursorWrapper, self).execute(checkReorgSQL, parameters)
+        res = super(DB2CursorWrapper, self).fetchall()
+        if res:
+            for sName, tName in res:
+                reorgSQL = '''CALL SYSPROC.ADMIN_CMD('REORG TABLE "%(sName)s"."%(tName)s"')''' % {
+                    'sName': sName, 'tName': tName}
+                reorgSQLs.append(reorgSQL)
+            for sql in reorgSQLs:
+                super(DB2CursorWrapper, self).execute(sql)
+
+    # Over-riding this method to modify result set containing datetime and time zone support is active
+    def fetchone(self):
+        row = super(DB2CursorWrapper, self).fetchone()
+        if row is None:
+            return row
+        else:
+            return self._fix_return_data(row)
+
+    # Over-riding this method to modify result set containing datetime and time zone support is active
+    def fetchmany(self, size=0):
+        rows = super(DB2CursorWrapper, self).fetchmany(size)
+        if rows is None:
+            return rows
+        else:
+            return [self._fix_return_data(row) for row in rows]
+
+    # Over-riding this method to modify result set containing datetime and time zone support is active
+    def fetchall(self):
+        rows = super(DB2CursorWrapper, self).fetchall()
+        if rows is None:
+            return rows
+        else:
+            return [self._fix_return_data(row) for row in rows]
+
+    # This method to modify result set containing datetime and time zone support is active
+    def _fix_return_data(self, row):
+        row = list(row)
+        index = -1
+        if (djangoVersion[0:2] >= (1, 4)):
+            for value, desc in zip(row, self.description):
+                index = index + 1
+                if (desc[1] == pyodbc.DATETIME):
+                    if settings.USE_TZ and value is not None and timezone.is_naive(
+                            value):
+                        value = value.replace(tzinfo=timezone.utc)
+                        row[index] = value
+                elif (djangoVersion[0:2] >= (1, 5)):
+                    if isinstance(value, six.string_types):
+                        row[index] = re.sub(r'[\x00]', '', value)
+        return tuple(row)
