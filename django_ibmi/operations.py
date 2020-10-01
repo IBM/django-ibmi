@@ -22,7 +22,7 @@ try:
 except ImportError:
     from django.db.backends.base.operations import BaseDatabaseOperations
 
-from ibm_db_django import query
+from django_ibmi import query
 from django import VERSION as djangoVersion
 import sys, datetime
 try:
@@ -52,7 +52,7 @@ class DatabaseOperations ( BaseDatabaseOperations ):
         self.connection = connection
         
     if( djangoVersion[0:2] >= ( 1, 2 ) ):
-        compiler_module = "ibm_db_django.compiler"
+        compiler_module = "django_ibmi.compiler"
     
     def cache_key_culling_sql(self):
         return '''SELECT cache_key 

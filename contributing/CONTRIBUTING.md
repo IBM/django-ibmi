@@ -70,13 +70,10 @@ pip install .
    {{{
    DATABASES = {
       'default': {
-         'ENGINE'     : 'ibm_db_django',
-         'NAME'       : 'mydb',
-         'USER'       : 'db2inst1',
-         'PASSWORD'   : 'ibmdb2',
-         'HOST'       : 'localhost',
-         'PORT'       : '50000',
-         'PCONNECT'   :  True,      #Optional property, default is false
+             'ENGINE'     : 'django-ibmi',
+             'NAME'       : 'ibmi-sysname',
+             'USER'       : 'uid',
+             'PASSWORD'   : 'pwd',
       }
    }
    }}}
