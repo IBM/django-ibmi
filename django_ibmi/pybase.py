@@ -38,11 +38,7 @@ if ( djangoVersion[0:2] >= ( 1, 5 )):
     from django.utils import six
     import re
  
-_IS_JYTHON = sys.platform.startswith( 'java' )
-if _IS_JYTHON:
-    dbms_name = 'dbname'
-else:
-    dbms_name = 'dbms_name'
+dbms_name = 'dbms_name'
 
 DatabaseError = Database.DatabaseError
 IntegrityError = Database.IntegrityError
@@ -107,12 +103,12 @@ class DatabaseWrapper( object ):
             del kwargs['options']
         if kwargsKeys.__contains__( 'port' ):
             del kwargs['port']
-        
+
         pconnect_flag = False
         if kwargsKeys.__contains__( 'PCONNECT' ):
             pconnect_flag = kwargs['PCONNECT']
             del kwargs['PCONNECT']
-            
+
         if pconnect_flag:
             connection = Database.pconnect( **kwargs )
         else:
@@ -144,7 +140,7 @@ class DB2CursorWrapper( Database.Cursor ):
         
     """
     This is the wrapper around IBM_DB_DBI in order to support format parameter style
-    IBM_DB_DBI supports qmark, where as Django support format style, 
+    IBM_DB_DBI supports qmark, where as Django support format style,
     hence this conversion is required. 
     """
     
