@@ -18,7 +18,7 @@ classifiers =[
     "Framework :: Django :: 3.1",
 ]
 packages = [
-    {include = "ibm_db_django"}
+    {include = "django_ibmi"}
 ]
 
 [tool.poetry.dependencies]
@@ -27,7 +27,7 @@ Django = ">=2.2"
 pyodbc = ">=4.0"
 
 [tool.poetry.plugins."django.db.backends"]
-ibm_db_django = "ibm_db_django"
+django_ibmi = "django_ibmi"
 
 [tool.poetry.dev-dependencies]
 
