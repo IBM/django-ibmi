@@ -17,15 +17,7 @@
 # +--------------------------------------------------------------------------+
 
 import sys
-_IS_JYTHON = sys.platform.startswith( 'java' )
-
-# Importing IBM_DB wrapper ibm_db_dbi, if not running on jython
-if not _IS_JYTHON:
-    try:
-        import ibm_db_dbi as Database
-    except ImportError as e:
-        raise ImportError( "ibm_db module not found. Install ibm_db module from http://code.google.com/p/ibm-db/. Error: %s" % e )
-
+import ibm_db_dbi as Database
 try:
     from django.db.backends.creation import BaseDatabaseCreation
 except ImportError:
@@ -36,10 +28,7 @@ from django.core.management import call_command
 from django import VERSION as djangoVersion
 from django.db.backends.utils import truncate_name
 
-if _IS_JYTHON:
-    dbms_name = 'dbname'
-else:
-    dbms_name = 'dbms_name'
+dbms_name = 'dbms_name'
 TEST_DBNAME_PREFIX = 'test_'
 
 class DatabaseCreation ( BaseDatabaseCreation ):
@@ -160,79 +149,74 @@ class DatabaseCreation ( BaseDatabaseCreation ):
     # For Jython this method prepare the settings file's database. First it drops the tables from the database,then create tables on the basis of installed models.
     def create_test_db( self, verbosity = 0, autoclobber = False , keepdb=False,serialize=False):
         kwargs = self.__create_test_kwargs()
-        if not _IS_JYTHON:
-            old_database = kwargs['database']
-            max_db_name_length = self.connection.ops.max_db_name_length()
-            kwargs['database'] = truncate_name( "%s%s" % ( TEST_DBNAME_PREFIX, old_database ), max_db_name_length )
-            kwargsKeys = kwargs.keys()
-            if ( kwargsKeys.__contains__( 'port' ) and 
-                    kwargsKeys.__contains__( 'host' ) ):
-                    kwargs['dsn'] = "DATABASE=%s;HOSTNAME=%s;PORT=%s;PROTOCOL=TCPIP;" % ( 
-                             kwargs.get( 'dbname' ),
-                             kwargs.get( 'host' ),
-                             kwargs.get( 'port' )
-                    )
-            else:
-                kwargs['dsn'] = ''
-            if kwargsKeys.__contains__( 'port' ):
-                del kwargs['port']
- 
-            if not autoclobber:
-                confirm = raw_input( "Wants to create %s as test database. Type yes to create it else type no" % ( kwargs.get( 'database' ) ) )
-            if autoclobber or confirm == 'yes':
-                try:
-                    if verbosity > 1:
-                        print ("Creating Test Database %s" % ( kwargs.get( 'database' ) ))
-                    Database.createdb( **kwargs )
-                except Exception as inst:
-                    message = repr( inst )
-                    if ( message.find( 'Not supported:' ) != -1 ):
-                        if not autoclobber:
-                            confirm = raw_input( "Not able to create test database, %s. Type yes to use %s as test database, or no to exit" % ( message.split( ":" )[1], old_database ) )
-                        else:
-                            confirm = raw_input( "Not able to create test database, %s. Type yes to use %s as test database, or no to exit" % ( message.split( ":" )[1], old_database ) )
-                        if autoclobber or confirm == 'yes':
-                            kwargs['database'] = old_database   
-                            self.__clean_up( self.connection.cursor() )
-                            self.connection._commit()
-                            self.connection.close()                
-                        else:
-                            print("Tests cancelled")
-                            sys.exit( 1 )
-                    else:
-                        sys.stderr.write( "Error occurred during creation of test database: %s" % ( message ) )
-                        index = message.find( 'SQLCODE' )
-                        
-                        if( message != '' ) & ( index != -1 ):
-                            error_code = message[( index + 8 ): ( index + 13 )]
-                            if( error_code != '-1005' ):
-                                print ("Tests cancelled")
-                                sys.exit( 1 )
-                            else:
-                                if not autoclobber:
-                                    confirm = raw_input( "\nTest database: %s already exist. Type yes to recreate it, or no to exit" % ( kwargs.get( 'database' ) ) )
-                                else:
-                                    confirm = raw_input( "\nTest database: %s already exist. Type yes to recreate it, or no to exit" % ( kwargs.get( 'database' ) ) )
-                                if autoclobber or confirm == 'yes':
-                                    if verbosity > 1:
-                                        print(("Recreating Test Database %s" % ( kwargs.get( 'database' ) )))
-                                    Database.recreatedb( **kwargs )
-                                else:
-                                    print ("Tests cancelled.")
-                                    sys.exit( 1 )
-            else:
-                confirm = raw_input("Wants to use %s as test database, Type yes to use it as test database or no to exit" % ( old_database ) )
-                if confirm == 'yes':
-                    kwargs['database'] = old_database
-                    self.__clean_up( self.connection.cursor() )
-                    self.connection._commit()
-                    self.connection.close()
-                else:
-                    sys.exit( 1 )
+        old_database = kwargs['database']
+        max_db_name_length = self.connection.ops.max_db_name_length()
+        kwargs['database'] = truncate_name( "%s%s" % ( TEST_DBNAME_PREFIX, old_database ), max_db_name_length )
+        kwargsKeys = kwargs.keys()
+        if ( kwargsKeys.__contains__( 'port' ) and
+                kwargsKeys.__contains__( 'host' ) ):
+                kwargs['dsn'] = "DATABASE=%s;HOSTNAME=%s;PORT=%s;PROTOCOL=TCPIP;" % (
+                         kwargs.get( 'dbname' ),
+                         kwargs.get( 'host' ),
+                         kwargs.get( 'port' )
+                )
         else:
-            self.__clean_up( self.connection.cursor() )
-            self.connection._commit()
-            self.connection.close()
+            kwargs['dsn'] = ''
+        if kwargsKeys.__contains__( 'port' ):
+            del kwargs['port']
+
+        if not autoclobber:
+            confirm = raw_input( "Wants to create %s as test database. Type yes to create it else type no" % ( kwargs.get( 'database' ) ) )
+        if autoclobber or confirm == 'yes':
+            try:
+                if verbosity > 1:
+                    print ("Creating Test Database %s" % ( kwargs.get( 'database' ) ))
+                Database.createdb( **kwargs )
+            except Exception as inst:
+                message = repr( inst )
+                if ( message.find( 'Not supported:' ) != -1 ):
+                    if not autoclobber:
+                        confirm = raw_input( "Not able to create test database, %s. Type yes to use %s as test database, or no to exit" % ( message.split( ":" )[1], old_database ) )
+                    else:
+                        confirm = raw_input( "Not able to create test database, %s. Type yes to use %s as test database, or no to exit" % ( message.split( ":" )[1], old_database ) )
+                    if autoclobber or confirm == 'yes':
+                        kwargs['database'] = old_database
+                        self.__clean_up( self.connection.cursor() )
+                        self.connection._commit()
+                        self.connection.close()
+                    else:
+                        print("Tests cancelled")
+                        sys.exit( 1 )
+                else:
+                    sys.stderr.write( "Error occurred during creation of test database: %s" % ( message ) )
+                    index = message.find( 'SQLCODE' )
+
+                    if( message != '' ) & ( index != -1 ):
+                        error_code = message[( index + 8 ): ( index + 13 )]
+                        if( error_code != '-1005' ):
+                            print ("Tests cancelled")
+                            sys.exit( 1 )
+                        else:
+                            if not autoclobber:
+                                confirm = raw_input( "\nTest database: %s already exist. Type yes to recreate it, or no to exit" % ( kwargs.get( 'database' ) ) )
+                            else:
+                                confirm = raw_input( "\nTest database: %s already exist. Type yes to recreate it, or no to exit" % ( kwargs.get( 'database' ) ) )
+                            if autoclobber or confirm == 'yes':
+                                if verbosity > 1:
+                                    print(("Recreating Test Database %s" % ( kwargs.get( 'database' ) )))
+                                Database.recreatedb( **kwargs )
+                            else:
+                                print ("Tests cancelled.")
+                                sys.exit( 1 )
+        else:
+            confirm = raw_input("Wants to use %s as test database, Type yes to use it as test database or no to exit" % ( old_database ) )
+            if confirm == 'yes':
+                kwargs['database'] = old_database
+                self.__clean_up( self.connection.cursor() )
+                self.connection._commit()
+                self.connection.close()
+            else:
+                sys.exit( 1 )
             
         test_database = kwargs.get( 'database' )
         if verbosity > 1:
@@ -262,31 +246,30 @@ class DatabaseCreation ( BaseDatabaseCreation ):
     # Method to destroy database. For Jython nothing is getting done over here.
     def destroy_test_db( self, old_database_name, verbosity = 0 ):
         print ("Destroying Database...")
-        if not _IS_JYTHON:
-            kwargs = self.__create_test_kwargs()
-            if( old_database_name != kwargs.get( 'database' ) ):
-                kwargsKeys = kwargs.keys()
-                if ( kwargsKeys.__contains__( 'port' ) and 
-                    kwargsKeys.__contains__( 'host' ) ):
-                    kwargs['dsn'] = "DATABASE=%s;HOSTNAME=%s;PORT=%s;PROTOCOL=TCPIP;" % ( 
-                             kwargs.get( 'database' ),
-                             kwargs.get( 'host' ),
-                             kwargs.get( 'port' )
-                    )
-                else:
-                    kwargs['dsn'] = ''
-                if kwargsKeys.__contains__( 'port' ):
-                    del kwargs['port']
-                if verbosity > 1:
-                    print ("Droping Test Database %s" % ( kwargs.get( 'database' ) ))
-                Database.dropdb( **kwargs )
-                
-            if( djangoVersion[0:2] <= ( 1, 1 ) ):
-                settings.DATABASE_NAME = old_database_name
-                settings.PCONNECT = True
+        kwargs = self.__create_test_kwargs()
+        if( old_database_name != kwargs.get( 'database' ) ):
+            kwargsKeys = kwargs.keys()
+            if ( kwargsKeys.__contains__( 'port' ) and
+                kwargsKeys.__contains__( 'host' ) ):
+                kwargs['dsn'] = "DATABASE=%s;HOSTNAME=%s;PORT=%s;PROTOCOL=TCPIP;" % (
+                         kwargs.get( 'database' ),
+                         kwargs.get( 'host' ),
+                         kwargs.get( 'port' )
+                )
             else:
-                self.connection.settings_dict['NAME'] = old_database_name
-                self.connection.settings_dict['PCONNECT'] = True
+                kwargs['dsn'] = ''
+            if kwargsKeys.__contains__( 'port' ):
+                del kwargs['port']
+            if verbosity > 1:
+                print ("Droping Test Database %s" % ( kwargs.get( 'database' ) ))
+            Database.dropdb( **kwargs )
+
+        if( djangoVersion[0:2] <= ( 1, 1 ) ):
+            settings.DATABASE_NAME = old_database_name
+            settings.PCONNECT = True
+        else:
+            self.connection.settings_dict['NAME'] = old_database_name
+            self.connection.settings_dict['PCONNECT'] = True
         return old_database_name
     
     # As DB2 does not allow to insert NULL value in UNIQUE col, hence modifing model.

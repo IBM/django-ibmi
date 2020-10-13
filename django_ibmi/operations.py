@@ -32,16 +32,12 @@ except ImportError:
     
 if ( djangoVersion[0:2] > ( 1, 1 ) ):
     from django.db import utils
-    
-_IS_JYTHON = sys.platform.startswith( 'java' )
+
 if( djangoVersion[0:2] >= ( 1, 4 ) ):
     from django.utils.timezone import is_aware, is_naive, utc 
     from django.conf import settings
 
-if _IS_JYTHON:
-    dbms_name = 'dbname'
-else:
-    dbms_name = 'dbms_name'
+dbms_name = 'dbms_name'
     
 class DatabaseOperations ( BaseDatabaseOperations ):
     def __init__( self, connection ):
@@ -273,17 +269,8 @@ class DatabaseOperations ( BaseDatabaseOperations ):
     
     # Function to return value of auto-generated field of last executed insert query. 
     def last_insert_id( self, cursor, table_name, pk_name ):
-        if not _IS_JYTHON:
-            return cursor.last_identity_val
-        else:
-            operation = 'SELECT IDENTITY_VAL_LOCAL() FROM SYSIBM.SYSDUMMY1'
-            cursor.execute( operation )
-            row = cursor.fetchone()
-            last_identity_val = None
-            if row is not None:
-                last_identity_val = int( row[0] )
-            return last_identity_val
-    
+        return cursor.last_identity_val
+
     # In case of WHERE clause, if the search is required to be case insensitive then converting 
     # left hand side field to upper.
     def lookup_cast( self, lookup_type, internal_type=None ):

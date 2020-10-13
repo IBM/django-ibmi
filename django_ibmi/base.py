@@ -21,7 +21,6 @@ DB2 database backend for Django.
 Requires: ibm_db_dbi (http://pypi.python.org/pypi/ibm_db) for python
 """
 import sys
-_IS_JYTHON = sys.platform.startswith( 'java' )
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -49,12 +48,10 @@ from django_ibmi.client import DatabaseClient
 from django_ibmi.creation import DatabaseCreation
 from django_ibmi.introspection import DatabaseIntrospection
 from django_ibmi.operations import DatabaseOperations
-if not _IS_JYTHON:
-    import django_ibmi.pybase as Base
-    import ibm_db_dbi as Database
-else:
-    import django_ibmi.jybase as Base
-    from com.ziclix.python.sql import zxJDBC as Database
+
+import django_ibmi.pybase as Base
+import ibm_db_dbi as Database
+
     
 # For checking django's version
 from django import VERSION as djangoVersion
@@ -74,10 +71,8 @@ if ( djangoVersion[0:2] >= ( 1, 6 )):
     NotSupportedError = Database.NotSupportedError
     
 
-if _IS_JYTHON:
-    dbms_name = 'dbname'
-else:
-    dbms_name = 'dbms_name'
+dbms_name = 'dbms_name'
+
     
 class DatabaseFeatures( BaseDatabaseFeatures ):    
     can_use_chunked_reads = True
@@ -129,7 +124,7 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
     """
     This is the base class for DB2 backend support for Django. The under lying 
     wrapper is IBM_DB_DBI (latest version can be downloaded from http://code.google.com/p/ibm-db/ or
-    http://pypi.python.org/pypi/ibm_db). 
+    http://pypi.python.org/pypi/ibm_db).
     """
     data_types={}
     vendor = 'DB2'
