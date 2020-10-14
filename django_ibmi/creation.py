@@ -17,7 +17,7 @@
 # +--------------------------------------------------------------------------+
 
 import sys
-import ibm_db_dbi as Database
+import pyodbc
 try:
     from django.db.backends.creation import BaseDatabaseCreation
 except ImportError:
@@ -171,7 +171,8 @@ class DatabaseCreation ( BaseDatabaseCreation ):
             try:
                 if verbosity > 1:
                     print ("Creating Test Database %s" % ( kwargs.get( 'database' ) ))
-                Database.createdb( **kwargs )
+                # comment out for now, will be fixed with rest of module
+                # pyodbc.createdb( **kwargs )
             except Exception as inst:
                 message = repr( inst )
                 if ( message.find( 'Not supported:' ) != -1 ):
@@ -204,7 +205,8 @@ class DatabaseCreation ( BaseDatabaseCreation ):
                             if autoclobber or confirm == 'yes':
                                 if verbosity > 1:
                                     print(("Recreating Test Database %s" % ( kwargs.get( 'database' ) )))
-                                Database.recreatedb( **kwargs )
+                                # comment out for now, will be fixed with rest of module
+                                # pyodbc.recreatedb( **kwargs )
                             else:
                                 print ("Tests cancelled.")
                                 sys.exit( 1 )
@@ -262,7 +264,8 @@ class DatabaseCreation ( BaseDatabaseCreation ):
                 del kwargs['port']
             if verbosity > 1:
                 print ("Droping Test Database %s" % ( kwargs.get( 'database' ) ))
-            Database.dropdb( **kwargs )
+            # comment out for now, will be fixed with rest of module
+            # pyodbc.dropdb( **kwargs )
 
         if( djangoVersion[0:2] <= ( 1, 1 ) ):
             settings.DATABASE_NAME = old_database_name

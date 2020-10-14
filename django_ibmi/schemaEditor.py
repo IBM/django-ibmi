@@ -32,8 +32,8 @@ from django.db.backends.utils import truncate_name
 from django.db.models.fields.related import ManyToManyField
 from django.db.utils import ProgrammingError
 from django import VERSION as djangoVersion
-import ibm_db_dbi as Database
-Error = Database.Error
+import pyodbc
+Error = pyodbc.Error
 
 class DB2SchemaEditor(BaseDatabaseSchemaEditor):
     psudo_column_prefix = 'psudo_'

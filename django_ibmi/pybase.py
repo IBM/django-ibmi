@@ -16,11 +16,7 @@
 # | Authors: Ambrish Bhargava, Tarun Pasrija, Rahul Priyadarshi              |
 # +--------------------------------------------------------------------------+
 
-# Importing IBM_DB wrapper ibm_db_dbi
-try:
-    import ibm_db_dbi as Database
-except ImportError as e:
-    raise ImportError( "ibm_db module not found. Install ibm_db module from http://code.google.com/p/ibm-db/. Error: %s" % e )
+import pyodbc
 
 import datetime
 # For checking django's version
@@ -40,16 +36,16 @@ if ( djangoVersion[0:2] >= ( 1, 5 )):
  
 dbms_name = 'dbms_name'
 
-DatabaseError = Database.DatabaseError
-IntegrityError = Database.IntegrityError
+DatabaseError = pyodbc.DatabaseError
+IntegrityError = pyodbc.IntegrityError
 if ( djangoVersion[0:2] >= ( 1, 6 )):
-    Error = Database.Error
-    InterfaceError = Database.InterfaceError
-    DataError = Database.DataError
-    OperationalError = Database.OperationalError
-    InternalError = Database.InternalError
-    ProgrammingError = Database.ProgrammingError
-    NotSupportedError = Database.NotSupportedError
+    Error = pyodbc.Error
+    InterfaceError = pyodbc.InterfaceError
+    DataError = pyodbc.DataError
+    OperationalError = pyodbc.OperationalError
+    InternalError = pyodbc.InternalError
+    ProgrammingError = pyodbc.ProgrammingError
+    NotSupportedError = pyodbc.NotSupportedError
     
 class DatabaseWrapper( object ):
     # Get new database connection for non persistance connection 
@@ -92,11 +88,6 @@ class DatabaseWrapper( object ):
             kwargs['dsn'] += "SSLSERVERCERTIFICATE=%s;" % (  kwargs.get( 'sslservercertificate' ))
             del kwargs['sslservercertificate']
 
-        # Before Django 1.6, autocommit was turned OFF
-        if ( djangoVersion[0:2] >= ( 1, 6 )):
-            conn_options = {Database.SQL_ATTR_AUTOCOMMIT : Database.SQL_AUTOCOMMIT_ON}
-        else:
-            conn_options = {Database.SQL_ATTR_AUTOCOMMIT : Database.SQL_AUTOCOMMIT_OFF}
         kwargs['conn_options'] = conn_options
         if kwargsKeys.__contains__( 'options' ):
             kwargs.update( kwargs.get( 'options' ) )
@@ -109,19 +100,14 @@ class DatabaseWrapper( object ):
             pconnect_flag = kwargs['PCONNECT']
             del kwargs['PCONNECT']
 
-        if pconnect_flag:
-            connection = Database.pconnect( **kwargs )
-        else:
-            connection = Database.connect( **kwargs )
+        connection = pyodbc.connect( **kwargs )
         connection.autocommit = connection.set_autocommit
 
         if SchemaFlag:
+            # TODO implement set_current_schema
             schema = connection.set_current_schema(currentschema)
         
         return connection
-    
-    def is_active( self, connection = None ):
-        return Database.ibm_db.active(connection.conn_handler)
         
     # Over-riding _cursor method to return DB2 cursor.
     def _cursor( self, connection ):
@@ -136,11 +122,11 @@ class DatabaseWrapper( object ):
             self.cursor()
         return tuple( int( version ) for version in self.connection.server_info()[1].split( "." ) )
     
-class DB2CursorWrapper( Database.Cursor ):
+class DB2CursorWrapper( pyodbc.Cursor ):
         
     """
-    This is the wrapper around IBM_DB_DBI in order to support format parameter style
-    IBM_DB_DBI supports qmark, where as Django support format style,
+    This is the wrapper around pyodbc in order to support format parameter style
+    pyodbc supports qmark, where as Django support format style,
     hence this conversion is required. 
     """
     
@@ -305,7 +291,7 @@ class DB2CursorWrapper( Database.Cursor ):
         if ( djangoVersion[0:2] >= ( 1, 4 ) ):
             for value, desc in zip( row, self.description ):
                 index = index + 1
-                if ( desc[1] == Database.DATETIME ):
+                if ( desc[1] == pyodbc.DATETIME ):
                     if settings.USE_TZ and value is not None and timezone.is_naive( value ):
                         value = value.replace( tzinfo=timezone.utc )
                         row[index] = value

@@ -18,7 +18,7 @@
 from collections import namedtuple
 import sys
 
-import ibm_db_dbi as Database
+import pyodbc
 
 try:
     from django.db.backends import BaseDatabaseIntrospection, FieldInfo
@@ -27,34 +27,51 @@ except ImportError:
 
 from django import VERSION as djangoVersion
 
+# TODO fix pyodbc access in Introspection when doing rest of module
+# after fix to DatabaseWrapper and CursorWrapper
+
 class DatabaseIntrospection( BaseDatabaseIntrospection ):
     
     """
     This is the class where database metadata information can be generated.
     """
 
+    SQL_AUTOFIELD = -777555
+    SQL_BIGAUTOFIELD = -777444
 
     data_types_reverse = {
-        Database.STRING :           "CharField",
-        Database.TEXT :             "TextField",
-        Database.XML :              "XMLField",
-        Database.NUMBER :           "IntegerField",
-        Database.FLOAT :            "FloatField",
-        Database.DECIMAL :          "DecimalField",
-        Database.DATE :             "DateField",
-        Database.TIME :             "TimeField",
-        Database.DATETIME :         "DateTimeField",
+        SQL_AUTOFIELD: 'AutoField',
+        SQL_BIGAUTOFIELD: 'BigAutoField',
+        pyodbc.SQL_BIGINT: 'BigIntegerField',
+        pyodbc.SQL_BINARY: 'BinaryField',
+        pyodbc.SQL_BIT: 'NullBooleanField',
+        pyodbc.SQL_CHAR: 'CharField',
+        pyodbc.SQL_DECIMAL: 'DecimalField',
+        pyodbc.SQL_DOUBLE: 'FloatField',
+        pyodbc.SQL_FLOAT: 'FloatField',
+        pyodbc.SQL_GUID: 'TextField',
+        pyodbc.SQL_INTEGER: 'IntegerField',
+        pyodbc.SQL_LONGVARBINARY: 'BinaryField',
+        pyodbc.SQL_NUMERIC: 'DecimalField',
+        pyodbc.SQL_REAL: 'FloatField',
+        pyodbc.SQL_SMALLINT: 'SmallIntegerField',
+        pyodbc.SQL_TINYINT: 'SmallIntegerField',
+        pyodbc.SQL_TYPE_DATE: 'DateField',
+        pyodbc.SQL_TYPE_TIME: 'TimeField',
+        pyodbc.SQL_TYPE_TIMESTAMP: 'DateTimeField',
+        pyodbc.SQL_VARBINARY: 'BinaryField',
+        pyodbc.SQL_VARCHAR: 'TextField',
+        pyodbc.SQL_LONGVARCHAR: 'TextField',
+        pyodbc.SQL_WCHAR: 'CharField',
+        pyodbc.SQL_WLONGVARCHAR: 'TextField',
+        pyodbc.SQL_WVARCHAR: 'TextField',
+        pyodbc.SQL_SS_XML: 'XMLField'
     }
-    if(djangoVersion[0:2] > (1, 1)):
-        data_types_reverse[Database.BINARY] = "BinaryField"
-        data_types_reverse[Database.BIGINT] = "BigIntegerField"
-    else:
-        data_types_reverse[Database.BIGINT] = "IntegerField"
 
      
     def get_field_type(self, data_type, description):
         if (djangoVersion[0:2] < ( 2, 0) ):
-            if data_type == Database.NUMBER:
+            if data_type == pyodbc.SQL_SMALLINT:
                 if description.precision == 5:
                     return 'SmallIntegerField'
         else:
