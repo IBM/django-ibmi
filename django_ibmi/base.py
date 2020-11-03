@@ -18,7 +18,7 @@
 
 """
 DB2 database backend for Django.
-Requires: pyodbc for python
+Requires: pyodbc
 """
 import sys
 
