@@ -18,7 +18,7 @@
 
 """
 DB2 database backend for Django.
-Requires: ibm_db_dbi (http://pypi.python.org/pypi/ibm_db) for python
+Requires: pyodbc
 """
 import sys
 
@@ -50,7 +50,7 @@ from django_ibmi.introspection import DatabaseIntrospection
 from django_ibmi.operations import DatabaseOperations
 
 import django_ibmi.pybase as Base
-import ibm_db_dbi as Database
+import pyodbc
 
     
 # For checking django's version
@@ -59,16 +59,16 @@ from django import VERSION as djangoVersion
 if ( djangoVersion[0:2] >= ( 1, 7 )):
     from django_ibmi.schemaEditor import DB2SchemaEditor
 
-DatabaseError = Database.DatabaseError
-IntegrityError = Database.IntegrityError
+DatabaseError = pyodbc.DatabaseError
+IntegrityError = pyodbc.IntegrityError
 if ( djangoVersion[0:2] >= ( 1, 6 )):
-    Error = Database.Error
-    InterfaceError = Database.InterfaceError
-    DataError = Database.DataError
-    OperationalError = Database.OperationalError
-    InternalError = Database.InternalError
-    ProgrammingError = Database.ProgrammingError
-    NotSupportedError = Database.NotSupportedError
+    Error = pyodbc.Error
+    InterfaceError = pyodbc.InterfaceError
+    DataError = pyodbc.DataError
+    OperationalError = pyodbc.OperationalError
+    InternalError = pyodbc.InternalError
+    ProgrammingError = pyodbc.ProgrammingError
+    NotSupportedError = pyodbc.NotSupportedError
     
 
 dbms_name = 'dbms_name'
@@ -115,7 +115,7 @@ class DatabaseFeatures( BaseDatabaseFeatures ):
     can_introspect_time_field = True
     
 class DatabaseValidation( BaseDatabaseValidation ):    
-    #Need to do validation for DB2 and ibm_db version
+    #Need to do validation for IBM i and pyodbc version
     def validate_field( self, errors, opts, f ):
         pass
 
@@ -123,8 +123,7 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
     
     """
     This is the base class for DB2 backend support for Django. The under lying 
-    wrapper is IBM_DB_DBI (latest version can be downloaded from http://code.google.com/p/ibm-db/ or
-    http://pypi.python.org/pypi/ibm_db).
+    wrapper is pyodbc.
     """
     data_types={}
     vendor = 'DB2'
@@ -143,7 +142,7 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
         "iendswith":    "LIKE UPPER(%s) ESCAPE '\\'",
     }
     if( djangoVersion[0:2] >= ( 1, 6 ) ):
-        Database = Database
+        Database = pyodbc
 
     client_class = DatabaseClient
     creation_class = DatabaseCreation
@@ -277,10 +276,7 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
     # To get new connection from Database
     def get_new_connection(self, conn_params):
         connection = self.databaseWrapper.get_new_connection(conn_params)
-        if getattr(connection, dbms_name) == 'DB2':
-            self.features.has_bulk_insert = False
-        else:
-            self.features.has_bulk_insert = True
+        self.features.has_bulk_insert = True
         return connection
         
     # Over-riding _cursor method to return DB2 cursor.
@@ -314,7 +310,7 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
                 return False
             
     def _set_autocommit(self, autocommit):
-        self.connection.set_autocommit( autocommit )
+        self.connection.autocommit = autocommit
      
     def close( self ):
         if( djangoVersion[0:2] >= ( 1, 5 ) ):

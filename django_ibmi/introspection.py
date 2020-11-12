@@ -18,7 +18,7 @@
 from collections import namedtuple
 import sys
 
-import ibm_db_dbi as Database
+import pyodbc
 
 try:
     from django.db.backends import BaseDatabaseIntrospection, FieldInfo
@@ -27,34 +27,23 @@ except ImportError:
 
 from django import VERSION as djangoVersion
 
+# TODO fix pyodbc access in Introspection when doing rest of module
+# after fix to DatabaseWrapper and CursorWrapper
+
 class DatabaseIntrospection( BaseDatabaseIntrospection ):
     
     """
     This is the class where database metadata information can be generated.
     """
 
-
     data_types_reverse = {
-        Database.STRING :           "CharField",
-        Database.TEXT :             "TextField",
-        Database.XML :              "XMLField",
-        Database.NUMBER :           "IntegerField",
-        Database.FLOAT :            "FloatField",
-        Database.DECIMAL :          "DecimalField",
-        Database.DATE :             "DateField",
-        Database.TIME :             "TimeField",
-        Database.DATETIME :         "DateTimeField",
+        # TODO define reverse data types
     }
-    if(djangoVersion[0:2] > (1, 1)):
-        data_types_reverse[Database.BINARY] = "BinaryField"
-        data_types_reverse[Database.BIGINT] = "BigIntegerField"
-    else:
-        data_types_reverse[Database.BIGINT] = "IntegerField"
 
      
     def get_field_type(self, data_type, description):
         if (djangoVersion[0:2] < ( 2, 0) ):
-            if data_type == Database.NUMBER:
+            if data_type == pyodbc.SQL_SMALLINT:
                 if description.precision == 5:
                     return 'SmallIntegerField'
         else:
