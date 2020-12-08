@@ -378,8 +378,8 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
             pass
 
         def is_usable(self):
-            # Implemented incorrectly
-            pass
+            #TODO implement is_usable method correctly
+            return True
             
     def _set_autocommit(self, autocommit):
         self.connection.autocommit = autocommit
