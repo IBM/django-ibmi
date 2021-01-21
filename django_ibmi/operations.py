@@ -23,32 +23,25 @@ except ImportError:
     from django.db.backends.base.operations import BaseDatabaseOperations
 
 from django_ibmi import query
-from django import VERSION as djangoVersion
 import sys, datetime
 try:
     import pytz
 except ImportError:
     pytz = None
-    
-if ( djangoVersion[0:2] > ( 1, 1 ) ):
-    from django.db import utils
 
-if( djangoVersion[0:2] >= ( 1, 4 ) ):
-    from django.utils.timezone import is_aware, is_naive, utc 
-    from django.conf import settings
+from django.db import utils
+
+from django.utils.timezone import is_aware, is_naive, utc
+from django.conf import settings
 
 dbms_name = 'dbms_name'
     
 class DatabaseOperations ( BaseDatabaseOperations ):
     def __init__( self, connection ):
-        if( djangoVersion[0:2] >= ( 1, 4 ) ):
-            super( DatabaseOperations, self ).__init__(self)
-        else:
-            super( DatabaseOperations, self ).__init__()
+        super( DatabaseOperations, self ).__init__(self)
         self.connection = connection
-        
-    if( djangoVersion[0:2] >= ( 1, 2 ) ):
-        compiler_module = "django_ibmi.compiler"
+
+    compiler_module = "django_ibmi.compiler"
     
     def cache_key_culling_sql(self):
         return '''SELECT cache_key 
@@ -111,35 +104,19 @@ class DatabaseOperations ( BaseDatabaseOperations ):
         elif operator == '^':
             return 'POWER(%s, %s)' % ( sub_expressions[0], sub_expressions[1] )
         elif operator == '-':
-            if( djangoVersion[0:2] >= ( 2 , 0) ):
-                strr= str(sub_expressions[1])
-                sub_expressions[1] = strr.replace('+', '-')
-            else:
-                sub_expressions[1] = str.replace('+', '-')
+            strr= str(sub_expressions[1])
+            sub_expressions[1] = strr.replace('+', '-')
             return super( DatabaseOperations, self ).combine_expression( operator, sub_expressions )
         else:
-            if( djangoVersion[0:2] >= (2 , 0)):
-                strr= str(sub_expressions[1])
-                sub_expressions[1]=strr.replace('+', '-')
-            else:
-                sub_expressions[1] = str.replace('+', '-')
+            strr= str(sub_expressions[1])
+            sub_expressions[1]=strr.replace('+', '-')
             return super( DatabaseOperations, self ).combine_expression( operator, sub_expressions )
     
-    if( djangoVersion[0:2] >= ( 1, 8 ) ):
-        def convert_binaryfield_value( self,value, expression,connections, context ):
-            return value    
-    else:
-        def convert_binaryfield_value( self,value, expression, context ):
-        # field_type = field.get_internal_type()
-        # if field_type in ( 'BooleanField', 'NullBooleanField' ):
-        #    if value in ( 0, 1 ):
-        #       return bool( value )
-        #else:
-            return value
+    def convert_binaryfield_value( self,value, expression,connections, context ):
+        return value
  
-    if( djangoVersion[0:2] >= ( 1, 8 ) ):
-        def format_for_duration_arithmetic(self, sql):
-            return ' %s MICROSECONDS' % sql
+    def format_for_duration_arithmetic(self, sql):
+        return ' %s MICROSECONDS' % sql
     
     # Function to extract day, month or year from the date.
     # Reference: http://publib.boulder.ibm.com/infocenter/db2luw/v9r5/topic/com.ibm.db2.luw.sql.ref.doc/doc/r0023457.html
@@ -193,10 +170,7 @@ class DatabaseOperations ( BaseDatabaseOperations ):
             sql = sql % ( field_name, 7, '-01' )
         elif lookup_type.upper() == 'YEAR':
             sql = sql % ( field_name, 4, '-01-01' )
-        if( djangoVersion[0:2] < ( 1, 6 ) ):
-            return sql
-        else:
-            return sql
+        return sql
     
     # Truncating the time zone-aware timestamps value on the basic of lookup type
     def datetime_trunc_sql( self, lookup_type, field_name, tzname ):
@@ -221,22 +195,9 @@ class DatabaseOperations ( BaseDatabaseOperations ):
             sql = sql % ( field_name, 4, '-01-01-00.00.00.000000' )
         return sql, []
         
-    if( djangoVersion[0:2] >= ( 1, 8 ) ): 
-        def date_interval_sql( self, timedelta ):    
-            return " %d days + %d seconds + %d microseconds" % (
-                timedelta.days, timedelta.seconds, timedelta.microseconds), []
-          
-    else:
-        def date_interval_sql( self, sql, connector, timedelta ):
-            date_interval_token = []
-            date_interval_token.append( sql )
-            date_interval_token.append( str( timedelta.days ) + " DAYS" )
-            if timedelta.seconds > 0:
-                date_interval_token.append( str( timedelta.seconds ) + " SECONDS" )
-            if timedelta.microseconds > 0:
-                date_interval_token.append( str( timedelta.microseconds ) + " MICROSECONDS" )
-            sql = "( %s )" % connector.join( date_interval_token )
-            return sql
+    def date_interval_sql( self, timedelta ):
+        return " %d days + %d seconds + %d microseconds" % (
+            timedelta.days, timedelta.seconds, timedelta.microseconds), []
     
     #As casting is not required, so nothing is required to do in this function.
     def datetime_cast_sql( self ):
@@ -446,16 +407,10 @@ class DatabaseOperations ( BaseDatabaseOperations ):
 
             for field in model._meta.many_to_many:
                 m2m_table = field.m2m_db_table()
-                if( djangoVersion[0:2] < ( 1, 9 ) ):
-                    if field.rel is not None and hasattr(field.rel,'through'):
-                        flag = field.rel.through
-                    else:
-                        flag = False
+                if field.remote_field is not None and hasattr(field.remote_field,'through'):
+                    flag= field.remote_field.through
                 else:
-                    if field.remote_field is not None and hasattr(field.remote_field,'through'):
-                        flag= field.remote_field.through
-                    else:
-                        flag = False
+                    flag = False
                 if not flag:
                     max_sql = "SELECT MAX(%s) FROM %s" % ( self.quote_name( 'ID' ), self.quote_name( table ) )
                     cursor.execute( max_sql )
@@ -496,36 +451,22 @@ class DatabaseOperations ( BaseDatabaseOperations ):
     def value_to_db_datetime( self, value ):
         if value is None:
             return None
-        
-        if( djangoVersion[0:2] <= ( 1, 3 ) ):
-            #DB2 doesn't support time zone aware datetime
-            if ( value.tzinfo is not None ):
-                raise ValueError( "Timezone aware datetime not supported" )
+
+        if is_aware(value):
+            if settings.USE_TZ:
+                value = value.astimezone( utc ).replace( tzinfo=None )
             else:
-                return value
-        else:
-            if is_aware(value):
-                if settings.USE_TZ:
-                    value = value.astimezone( utc ).replace( tzinfo=None )
-                else:
-                    raise ValueError( "Timezone aware datetime not supported" )
-            return unicode( value )
+                raise ValueError( "Timezone aware datetime not supported" )
+        return unicode( value )
         
     def value_to_db_time( self, value ):
         if value is None:
             return None
-        
-        if( djangoVersion[0:2] <= ( 1, 3 ) ):
-            #DB2 doesn't support time zone aware time
-            if ( value.tzinfo is not None ):
-                raise ValueError( "Timezone aware time not supported" )
-            else:
-                return value
+
+        if is_aware(value):
+            raise ValueError( "Timezone aware time not supported" )
         else:
-            if is_aware(value):
-                raise ValueError( "Timezone aware time not supported" )
-            else:
-                return value
+            return value
                     
     def year_lookup_bounds_for_date_field( self, value ):
         if sys.version_info.major >= 3:
@@ -551,10 +492,7 @@ class DatabaseOperations ( BaseDatabaseOperations ):
     def for_update_sql(self, nowait=False):
         #DB2 doesn't support nowait select for update
         if nowait:
-            if ( djangoVersion[0:2] > ( 1, 1 ) ):
-                raise utils.DatabaseError( "Nowait Select for update not supported " )
-            else:
-                raise ValueError( "Nowait Select for update not supported " )
+            raise utils.DatabaseError( "Nowait Select for update not supported " )
         else:
             return 'WITH RS USE AND KEEP UPDATE LOCKS'
 

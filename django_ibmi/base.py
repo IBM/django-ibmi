@@ -51,38 +51,25 @@ from django_ibmi.operations import DatabaseOperations
 
 import pyodbc
 
-    
-# For checking django's version
-from django import VERSION as djangoVersion
-
-if ( djangoVersion[0:2] >= ( 1, 7 )):
-    from django_ibmi.schemaEditor import DB2SchemaEditor
+from django_ibmi.schemaEditor import DB2SchemaEditor
 
 import datetime
-# For checking django's version
-from django import VERSION as djangoVersion
-
-if (djangoVersion[0:2] > (1, 1)):
-    from django.db import utils
-if (djangoVersion[0:2] >= (1, 4)):
-    from django.utils import timezone
-    from django.conf import settings
-    import warnings
-if (djangoVersion[0:2] >= (1, 5)):
-    from django.utils.encoding import force_bytes, force_text
-    from django.utils import six
-    import re
+from django.db import utils
+from django.utils import timezone
+from django.conf import settings
+import warnings
+from django.utils import six
+import re
 
 DatabaseError = pyodbc.DatabaseError
 IntegrityError = pyodbc.IntegrityError
-if ( djangoVersion[0:2] >= ( 1, 6 )):
-    Error = pyodbc.Error
-    InterfaceError = pyodbc.InterfaceError
-    DataError = pyodbc.DataError
-    OperationalError = pyodbc.OperationalError
-    InternalError = pyodbc.InternalError
-    ProgrammingError = pyodbc.ProgrammingError
-    NotSupportedError = pyodbc.NotSupportedError
+Error = pyodbc.Error
+InterfaceError = pyodbc.InterfaceError
+DataError = pyodbc.DataError
+OperationalError = pyodbc.OperationalError
+InternalError = pyodbc.InternalError
+ProgrammingError = pyodbc.ProgrammingError
+NotSupportedError = pyodbc.NotSupportedError
     
 
 dbms_name = 'dbms_name'
@@ -155,8 +142,8 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
         "istartswith":  "LIKE UPPER(%s) ESCAPE '\\'",
         "iendswith":    "LIKE UPPER(%s) ESCAPE '\\'",
     }
-    if( djangoVersion[0:2] >= ( 1, 6 ) ):
-        Database = pyodbc
+
+    Database = pyodbc
 
     client_class = DatabaseClient
     creation_class = DatabaseCreation
@@ -169,25 +156,14 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
     def __init__( self, *args ):
         super( DatabaseWrapper, self ).__init__( *args )
         self.ops = DatabaseOperations( self )
-        if( djangoVersion[0:2] <= ( 1, 0 ) ):
-            self.client = DatabaseClient()
-        else:
-            self.client = DatabaseClient( self )
-        if( djangoVersion[0:2] <= ( 1, 2 ) ):
-            self.features = DatabaseFeatures()
-        else:
-            self.features = DatabaseFeatures( self )
+        self.client = DatabaseClient( self )
+        self.features = DatabaseFeatures( self )
         self.creation = DatabaseCreation( self )
-        
-        if( djangoVersion[0:2] >= ( 1, 8 ) ): 
-            self.data_types=self.creation.data_types
-            self.data_type_check_constraints=self.creation.data_type_check_constraints
-        
+        self.data_types=self.creation.data_types
+        self.data_type_check_constraints=self.creation.data_type_check_constraints
         self.introspection = DatabaseIntrospection( self )
-        if( djangoVersion[0:2] <= ( 1, 1 ) ):
-            self.validation = DatabaseValidation()
-        else:
-            self.validation = DatabaseValidation( self )
+        self.validation = DatabaseValidation( self )
+        self.databaseWrapper = DatabaseWrapper()
     
     # Method to check if connection is live or not.
     def __is_connection( self ):
@@ -200,29 +176,14 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
         else:
             strvar = basestring
         kwargs = { }
-        if ( djangoVersion[0:2] <= ( 1, 0 ) ):
-            database_name = self.settings.DATABASE_NAME
-            database_user = self.settings.DATABASE_USER
-            database_pass = self.settings.DATABASE_PASSWORD
-            database_host = self.settings.DATABASE_HOST
-            database_port = self.settings.DATABASE_PORT
-            database_options = self.settings.DATABASE_OPTIONS
-        elif ( djangoVersion[0:2] <= ( 1, 1 ) ):
-            settings_dict = self.settings_dict
-            database_name = settings_dict['DATABASE_NAME']
-            database_user = settings_dict['DATABASE_USER']
-            database_pass = settings_dict['DATABASE_PASSWORD']
-            database_host = settings_dict['DATABASE_HOST']
-            database_port = settings_dict['DATABASE_PORT']
-            database_options = settings_dict['DATABASE_OPTIONS']
-        else:
-            settings_dict = self.settings_dict
-            database_name = settings_dict['NAME']
-            database_user = settings_dict['USER']
-            database_pass = settings_dict['PASSWORD']
-            database_host = settings_dict['HOST']
-            database_port = settings_dict['PORT']
-            database_options = settings_dict['OPTIONS']
+
+        settings_dict = self.settings_dict
+        database_name = settings_dict['NAME']
+        database_user = settings_dict['USER']
+        database_pass = settings_dict['PASSWORD']
+        database_host = settings_dict['HOST']
+        database_port = settings_dict['PORT']
+        database_options = settings_dict['OPTIONS']
  
         if database_name != '' and isinstance( database_name, strvar ):
             kwargs['database'] = database_name
@@ -246,13 +207,9 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
         
         if isinstance( database_options, dict ):
             kwargs['options'] = database_options
-        
-        if ( djangoVersion[0:2] <= ( 1, 0 ) ):
-           if( hasattr( settings, 'PCONNECT' ) ):
-               kwargs['PCONNECT'] = settings.PCONNECT
-        else:
-            if ( settings_dict.keys() ).__contains__( 'PCONNECT' ):
-                kwargs['PCONNECT'] = settings_dict['PCONNECT']
+
+        if ( settings_dict.keys() ).__contains__( 'PCONNECT' ):
+            kwargs['PCONNECT'] = settings_dict['PCONNECT']
 
         if('CURRENTSCHEMA' in settings_dict):
             database_schema = settings_dict['CURRENTSCHEMA']
@@ -352,41 +309,22 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
             schema = connection.set_current_schema(currentschema)
         self.features.has_bulk_insert = True
         return connection
-        
-    # Over-riding _cursor method to return DB2 cursor.
-    if ( djangoVersion[0:2] < ( 1, 6 )):
-        def _cursor( self, settings = None ):
-            if not self.__is_connection():
-                if ( djangoVersion[0:2] <= ( 1, 0 ) ):
-                    self.settings = settings
-                    
-                self.connection = self.get_new_connection(self.get_connection_params())
-                cursor = DB2CursorWrapper(self.connection)
-                
-                if( djangoVersion[0:3] <= ( 1, 2, 2 ) ):
-                    connection_created.send( sender = self.__class__ )
-                else:
-                    connection_created.send( sender = self.__class__, connection = self )
-            else:
-                cursor = DB2CursorWrapper(self.connection)
-            return cursor
-    else:
-        def create_cursor( self , name = None):
-            return DB2CursorWrapper(self.connection)
-            
-        def init_connection_state( self ):
-            pass
 
-        def is_usable(self):
-            #TODO implement is_usable method correctly
-            return True
+    def create_cursor( self , name = None):
+        return DB2CursorWrapper(self.connection)
+
+    def init_connection_state( self ):
+        pass
+
+    def is_usable(self):
+        #TODO implement is_usable method correctly
+        return True
             
     def _set_autocommit(self, autocommit):
         self.connection.autocommit = autocommit
      
     def close( self ):
-        if( djangoVersion[0:2] >= ( 1, 5 ) ):
-            self.validate_thread_sharing()
+        self.validate_thread_sharing()
         if self.connection is not None:
             self.connection.close()
             self.connection = None
@@ -399,6 +337,7 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
     
     def schema_editor(self, *args, **kwargs):
         return DB2SchemaEditor(self, *args, **kwargs)
+
 
 
 class DB2CursorWrapper(pyodbc.Cursor):
@@ -444,8 +383,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
     # Over-riding this method to modify SQLs which contains format parameter to qmark.
     def execute(self, operation, parameters=()):
-        if (djangoVersion[0:2] >= (2, 0)):
-            operation = str(operation)
+        operation = str(operation)
         try:
             if operation.find('ALTER TABLE') == 0 and getattr(self.connection,
                                                               dbms_name) != 'DB2':
@@ -458,55 +396,34 @@ class DB2CursorWrapper(pyodbc.Cursor):
                 parameters = ()
             if operation.count("%s") > 0:
                 operation = operation % (tuple("?" * operation.count("%s")))
-            if (djangoVersion[0:2] >= (1, 4)):
-                parameters = self._format_parameters(parameters)
+            parameters = self._format_parameters(parameters)
 
-            if (djangoVersion[0:2] <= (1, 1)):
+            try:
                 if (doReorg == 1):
-                    super(DB2CursorWrapper, self).execute(operation, parameters)
+                    super(DB2CursorWrapper, self).execute(operation,
+                                                          parameters)
                     return self._reorg_tables()
                 else:
                     return super(DB2CursorWrapper, self).execute(operation,
                                                                  parameters)
-            else:
-                try:
-                    if (doReorg == 1):
-                        super(DB2CursorWrapper, self).execute(operation,
-                                                              parameters)
-                        return self._reorg_tables()
-                    else:
-                        return super(DB2CursorWrapper, self).execute(operation,
-                                                                     parameters)
-                except IntegrityError as e:
-                    if (djangoVersion[0:2] >= (1, 5)):
-                        six.reraise(utils.IntegrityError, utils.IntegrityError(
-                            *tuple(six.PY3 and e.args or (e._message,))),
-                                    sys.exc_info()[2])
-                        raise
-                    else:
-                        raise utils.IntegrityError, utils.IntegrityError(
-                            *tuple(e)), sys.exc_info()[2]
+            except IntegrityError as e:
+                six.reraise(utils.IntegrityError, utils.IntegrityError(
+                    *tuple(six.PY3 and e.args or (e._message,))),
+                            sys.exc_info()[2])
+                raise
 
-                except ProgrammingError as e:
-                    if (djangoVersion[0:2] >= (1, 5)):
-                        six.reraise(utils.ProgrammingError,
-                                    utils.ProgrammingError(*tuple(
-                                        six.PY3 and e.args or (e._message,))),
-                                    sys.exc_info()[2])
-                        raise
-                    else:
-                        raise utils.ProgrammingError, utils.ProgrammingError(
-                            *tuple(e)), sys.exc_info()[2]
-                except DatabaseError as e:
-                    if (djangoVersion[0:2] >= (1, 5)):
-                        six.reraise(utils.DatabaseError, utils.DatabaseError(
-                            *tuple(six.PY3 and e.args or (e._message,))),
-                                    sys.exc_info()[2])
-                        raise
-                    else:
-                        raise utils.DatabaseError, utils.DatabaseError(
-                            *tuple(e)), sys.exc_info()[2]
-        except (TypeError):
+            except ProgrammingError as e:
+                six.reraise(utils.ProgrammingError,
+                            utils.ProgrammingError(*tuple(
+                                six.PY3 and e.args or (e._message,))),
+                            sys.exc_info()[2])
+                raise
+            except DatabaseError as e:
+                six.reraise(utils.DatabaseError, utils.DatabaseError(
+                    *tuple(six.PY3 and e.args or (e._message,))),
+                            sys.exc_info()[2])
+                raise
+        except TypeError:
             return None
 
     # Over-riding this method to modify SQLs which contains format parameter to qmark.
@@ -516,35 +433,22 @@ class DB2CursorWrapper(pyodbc.Cursor):
                 raise ValueError("Regex not supported in this operation")
             if operation.count("%s") > 0:
                 operation = operation % (tuple("?" * operation.count("%s")))
-            if (djangoVersion[0:2] >= (1, 4)):
-                seq_parameters = [self._format_parameters(parameters) for
-                                  parameters in seq_parameters]
 
-            if (djangoVersion[0:2] <= (1, 1)):
+            seq_parameters = [self._format_parameters(parameters) for
+                              parameters in seq_parameters]
+            try:
                 return super(DB2CursorWrapper, self).executemany(operation,
                                                                  seq_parameters)
-            else:
-                try:
-                    return super(DB2CursorWrapper, self).executemany(operation,
-                                                                     seq_parameters)
-                except IntegrityError as e:
-                    if (djangoVersion[0:2] >= (1, 5)):
-                        six.reraise(utils.IntegrityError, utils.IntegrityError(
-                            *tuple(six.PY3 and e.args or (e._message,))),
-                                    sys.exc_info()[2])
-                        raise
-                    else:
-                        raise utils.IntegrityError, utils.IntegrityError(
-                            *tuple(e)), sys.exc_info()[2]
-                except DatabaseError as e:
-                    if (djangoVersion[0:2] >= (1, 5)):
-                        six.reraise(utils.DatabaseError, utils.DatabaseError(
-                            *tuple(six.PY3 and e.args or (e._message,))),
-                                    sys.exc_info()[2])
-                        raise
-                    else:
-                        raise utils.DatabaseError, utils.DatabaseError(
-                            *tuple(e)), sys.exc_info()[2]
+            except IntegrityError as e:
+                six.reraise(utils.IntegrityError, utils.IntegrityError(
+                    *tuple(six.PY3 and e.args or (e._message,))),
+                            sys.exc_info()[2])
+                raise
+            except DatabaseError as e:
+                six.reraise(utils.DatabaseError, utils.DatabaseError(
+                    *tuple(six.PY3 and e.args or (e._message,))),
+                            sys.exc_info()[2])
+                raise
         except (IndexError, TypeError):
             return None
 
@@ -592,15 +496,13 @@ class DB2CursorWrapper(pyodbc.Cursor):
     def _fix_return_data(self, row):
         row = list(row)
         index = -1
-        if (djangoVersion[0:2] >= (1, 4)):
-            for value, desc in zip(row, self.description):
-                index = index + 1
-                if (desc[1] == pyodbc.DATETIME):
-                    if settings.USE_TZ and value is not None and timezone.is_naive(
-                            value):
-                        value = value.replace(tzinfo=timezone.utc)
-                        row[index] = value
-                elif (djangoVersion[0:2] >= (1, 5)):
-                    if isinstance(value, six.string_types):
-                        row[index] = re.sub(r'[\x00]', '', value)
+        for value, desc in zip(row, self.description):
+            index = index + 1
+            if (desc[1] == pyodbc.DATETIME):
+                if settings.USE_TZ and value is not None and timezone.is_naive(
+                        value):
+                    value = value.replace(tzinfo=timezone.utc)
+                    row[index] = value
+            if isinstance(value, six.string_types):
+                row[index] = re.sub(r'[\x00]', '', value)
         return tuple(row)

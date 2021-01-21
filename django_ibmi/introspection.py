@@ -25,7 +25,6 @@ try:
 except ImportError:
     from django.db.backends.base.introspection import BaseDatabaseIntrospection, FieldInfo
 
-from django import VERSION as djangoVersion
 
 # TODO fix pyodbc access in Introspection when doing rest of module
 # after fix to DatabaseWrapper and CursorWrapper
@@ -39,15 +38,9 @@ class DatabaseIntrospection( BaseDatabaseIntrospection ):
     data_types_reverse = {
         # TODO define reverse data types
     }
-
      
     def get_field_type(self, data_type, description):
-        if (djangoVersion[0:2] < ( 2, 0) ):
-            if data_type == pyodbc.SQL_SMALLINT:
-                if description.precision == 5:
-                    return 'SmallIntegerField'
-        else:
-            return super(DatabaseIntrospection, self).get_field_type(data_type, description)
+        return super(DatabaseIntrospection, self).get_field_type(data_type, description)
     
     # Converting table name to lower case.
     def table_name_converter ( self, name ):        
@@ -58,10 +51,7 @@ class DatabaseIntrospection( BaseDatabaseIntrospection ):
         TableInfo = namedtuple('TableInfo', ['name', 'type'])
         table_list = []
         for table in cursor.connection.tables( cursor.connection.get_current_schema() ):
-            if( djangoVersion[0:2] < ( 1, 8 ) ):
-                table_list.append( table['TABLE_NAME'].lower() )
-            else:
-                table_list.append(TableInfo( table['TABLE_NAME'].lower(),'t'))
+            table_list.append(TableInfo( table['TABLE_NAME'].lower(),'t'))
         return table_list
     
     # Generating a dictionary for foreign key details, which are present under current schema.

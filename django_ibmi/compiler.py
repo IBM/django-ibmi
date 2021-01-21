@@ -23,8 +23,7 @@ if sys.version_info >= (3, ):
         from itertools import zip_longest
     except ImportError:
         from itertools import izip_longest as zip_longest
-# For checking django's version
-from django import VERSION as djangoVersion
+
         
 class SQLCompiler( compiler.SQLCompiler ):
     __rownum = 'Z.__ROWNUM'
@@ -156,11 +155,3 @@ class SQLUpdateCompiler( compiler.SQLUpdateCompiler, SQLCompiler ):
 
 class SQLAggregateCompiler( compiler.SQLAggregateCompiler, SQLCompiler ):
     pass
-
-if djangoVersion[0:2] < ( 1, 8 ):
-    class SQLDateCompiler(compiler.SQLDateCompiler, SQLCompiler):
-        pass
-
-if djangoVersion[0:2] >= ( 1, 6 ) and djangoVersion[0:2] < ( 1, 8 ):
-    class SQLDateTimeCompiler(compiler.SQLDateTimeCompiler, SQLCompiler):
-        pass
