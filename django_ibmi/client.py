@@ -44,16 +44,12 @@ class DatabaseClient( BaseDatabaseClient ):
             cmdArgs += ["db2 connect to %s" % database_name]
         else:
             cmdArgs += ["connect to %s" % database_name]
-        if sys.version_info.major >= 3:
-            basestring = str
-        else:
-            basestring = basestring
 
-        if ( isinstance( database_user, basestring ) and 
+        if ( isinstance( database_user, str ) and
             ( database_user != '' ) ):
             cmdArgs += ["user %s" % database_user]
             
-            if ( isinstance( database_password, basestring ) and 
+            if ( isinstance( database_password, str ) and
                 ( database_password != '' ) ):
                 cmdArgs += ["using %s" % database_password]
                 

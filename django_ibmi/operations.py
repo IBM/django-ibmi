@@ -457,7 +457,7 @@ class DatabaseOperations ( BaseDatabaseOperations ):
                 value = value.astimezone( utc ).replace( tzinfo=None )
             else:
                 raise ValueError( "Timezone aware datetime not supported" )
-        return unicode( value )
+        return str( value )
         
     def value_to_db_time( self, value ):
         if value is None:
@@ -469,21 +469,13 @@ class DatabaseOperations ( BaseDatabaseOperations ):
             return value
                     
     def year_lookup_bounds_for_date_field( self, value ):
-        if sys.version_info.major >= 3:
-            lower_bound = datetime.date(int(value), 1, 1)
-            upper_bound = datetime.date(int(value), 12, 31)
-        else:
-            lower_bound = datetime.date(long(value), 1, 1)
-            upper_bound = datetime.date(long(value), 12, 31)
+        lower_bound = datetime.date(int(value), 1, 1)
+        upper_bound = datetime.date(int(value), 12, 31)
         return [lower_bound, upper_bound]
     
     def bulk_insert_sql(self, fields, num_values):
-        if sys.version_info.major >= 3:
-            var_param=(int)
-        else:
-            var_param=(int,long)
         values_sql = "( %s )" %(", ".join( ["%s"] * len(fields)))
-        if isinstance(num_values,var_param):
+        if isinstance(num_values, int):
             bulk_values_sql = "VALUES " + ", ".join([values_sql] * (num_values) )
         else:
             bulk_values_sql = "VALUES " + ", ".join([values_sql] * len(num_values) )

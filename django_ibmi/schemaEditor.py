@@ -26,7 +26,6 @@ try:
 except ImportError:
     from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
-from django.utils import six
 from django.db import models
 from django.db.backends.utils import truncate_name
 from django.db.models.fields.related import ManyToManyField
@@ -84,7 +83,7 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
         return sql, []
 
     def prepare_default(self, value):
-        CONVERT_STR= (datetime.datetime, datetime.date, datetime.time, six.string_types)
+        CONVERT_STR= (datetime.datetime, datetime.date, datetime.time, str)
 
         if callable(value):
             value = value()

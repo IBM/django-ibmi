@@ -18,11 +18,7 @@
 
 from django.db.models.sql import compiler
 import sys
-if sys.version_info >= (3, ):
-    try:
-        from itertools import zip_longest
-    except ImportError:
-        from itertools import izip_longest as zip_longest
+from itertools import zip_longest
 
         
 class SQLCompiler( compiler.SQLCompiler ):
@@ -110,18 +106,12 @@ class SQLCompiler( compiler.SQLCompiler ):
                 sql = '%s "%s" <= %d' % ( sql, self.__rownum, self.query.high_mark )
 
         return sql, params
-    
-    def __map23(self, value, field):
-        if sys.version_info >= (3, ):
-            return zip_longest(value, field)
-        else:
-            return map(None, value, field)
-        
+
     #This function  convert 0/1 to boolean type for BooleanField/NullBooleanField
     def resolve_columns( self, row, fields = () ):
         values = []
         index_extra_select = len( self.query.extra_select.keys() )
-        for value, field in self.__map23( row[index_extra_select:], fields ):
+        for value, field in zip_longest( row[index_extra_select:], fields ):
             if ( field and field.get_internal_type() in ( "BooleanField", "NullBooleanField" ) and value in ( 0, 1 ) ):
                 value = bool( value )
             values.append( value )
