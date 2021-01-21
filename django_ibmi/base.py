@@ -44,14 +44,14 @@ except ImportError:
 from django.db.backends.signals import connection_created
 
 # Importing internal classes from django_ibmi package.
-from django_ibmi.client import DatabaseClient
-from django_ibmi.creation import DatabaseCreation
-from django_ibmi.introspection import DatabaseIntrospection
-from django_ibmi.operations import DatabaseOperations
+from .client import DatabaseClient
+from .creation import DatabaseCreation
+from .introspection import DatabaseIntrospection
+from .operations import DatabaseOperations
 
 import pyodbc
 
-from django_ibmi.schemaEditor import DB2SchemaEditor
+from .schemaEditor import DB2SchemaEditor
 
 import datetime
 from django.db import utils
