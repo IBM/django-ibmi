@@ -22,7 +22,7 @@ try:
 except ImportError:
     from django.db.backends.base.operations import BaseDatabaseOperations
 
-from django_ibmi import query
+from . import query
 import sys, datetime
 try:
     import pytz
