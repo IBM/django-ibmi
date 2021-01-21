@@ -469,19 +469,12 @@ class DatabaseOperations ( BaseDatabaseOperations ):
             return value
                     
     def year_lookup_bounds_for_date_field( self, value ):
-        if sys.version_info.major >= 3:
-            lower_bound = datetime.date(int(value), 1, 1)
-            upper_bound = datetime.date(int(value), 12, 31)
-        else:
-            lower_bound = datetime.date(long(value), 1, 1)
-            upper_bound = datetime.date(long(value), 12, 31)
+        lower_bound = datetime.date(int(value), 1, 1)
+        upper_bound = datetime.date(int(value), 12, 31)
         return [lower_bound, upper_bound]
     
     def bulk_insert_sql(self, fields, num_values):
-        if sys.version_info.major >= 3:
-            var_param=(int)
-        else:
-            var_param=(int,long)
+        var_param=(int)
         values_sql = "( %s )" %(", ".join( ["%s"] * len(fields)))
         if isinstance(num_values,var_param):
             bulk_values_sql = "VALUES " + ", ".join([values_sql] * (num_values) )

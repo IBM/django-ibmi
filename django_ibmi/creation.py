@@ -302,10 +302,7 @@ class DatabaseCreation ( BaseDatabaseCreation ):
         
     #private method to create dictionary of login credentials for test database
     def __create_test_kwargs( self ):
-        if sys.version_info.major >= 3:
-            strvar = str
-        else:
-            strvar = basestring
+        strvar = str
 
         if( isinstance( self.connection.settings_dict['NAME'], strvar ) and
             ( self.connection.settings_dict['NAME'] != '' ) ):

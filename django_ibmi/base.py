@@ -503,6 +503,6 @@ class DB2CursorWrapper(pyodbc.Cursor):
                         value):
                     value = value.replace(tzinfo=timezone.utc)
                     row[index] = value
-            if isinstance(value, six.string_types):
+            if isinstance(value, str):
                 row[index] = re.sub(r'[\x00]', '', value)
         return tuple(row)

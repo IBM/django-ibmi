@@ -84,7 +84,7 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
         return sql, []
 
     def prepare_default(self, value):
-        CONVERT_STR= (datetime.datetime, datetime.date, datetime.time, six.string_types)
+        CONVERT_STR= (datetime.datetime, datetime.date, datetime.time, str)
 
         if callable(value):
             value = value()
