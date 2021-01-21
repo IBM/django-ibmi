@@ -128,7 +128,8 @@ class DatabaseOperations ( BaseDatabaseOperations ):
     
     def _get_utcoffset(self, tzname):
         if pytz is None and tzname is not None:
-            NotSupportedError("Not supported without pytz")
+            #TODO handle pytz
+            raise RuntimeError
         else:
             hr = 0
             min = 0

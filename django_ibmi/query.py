@@ -83,10 +83,10 @@ def query_class( QueryClass ):
                 sql = '%s, ( ROW_NUMBER() OVER() ) AS "%s" FROM ( %s ) AS M' % ( sql_sel, self.__rownum, sql_pri )
                 sql = '%s FROM ( %s ) Z WHERE' % ( sql_sel, sql )
                 
-                if self.low_mark is not 0:
+                if self.low_mark != 0:
                     sql = '%s "%s" > %d' % ( sql, self.__rownum, self.low_mark )
                     
-                if self.low_mark is not 0 and self.high_mark is not None:
+                if self.low_mark != 0 and self.high_mark is not None:
                     sql = '%s AND ' % ( sql )
 
                 if self.high_mark is not None:

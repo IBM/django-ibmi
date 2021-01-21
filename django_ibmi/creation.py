@@ -151,7 +151,7 @@ class DatabaseCreation ( BaseDatabaseCreation ):
             del kwargs['port']
 
         if not autoclobber:
-            confirm = raw_input( "Wants to create %s as test database. Type yes to create it else type no" % ( kwargs.get( 'database' ) ) )
+            confirm = input( "Wants to create %s as test database. Type yes to create it else type no" % ( kwargs.get( 'database' ) ) )
         if autoclobber or confirm == 'yes':
             try:
                 if verbosity > 1:
@@ -162,9 +162,9 @@ class DatabaseCreation ( BaseDatabaseCreation ):
                 message = repr( inst )
                 if ( message.find( 'Not supported:' ) != -1 ):
                     if not autoclobber:
-                        confirm = raw_input( "Not able to create test database, %s. Type yes to use %s as test database, or no to exit" % ( message.split( ":" )[1], old_database ) )
+                        confirm = input( "Not able to create test database, %s. Type yes to use %s as test database, or no to exit" % ( message.split( ":" )[1], old_database ) )
                     else:
-                        confirm = raw_input( "Not able to create test database, %s. Type yes to use %s as test database, or no to exit" % ( message.split( ":" )[1], old_database ) )
+                        confirm = input( "Not able to create test database, %s. Type yes to use %s as test database, or no to exit" % ( message.split( ":" )[1], old_database ) )
                     if autoclobber or confirm == 'yes':
                         kwargs['database'] = old_database
                         self.__clean_up( self.connection.cursor() )
@@ -184,9 +184,9 @@ class DatabaseCreation ( BaseDatabaseCreation ):
                             sys.exit( 1 )
                         else:
                             if not autoclobber:
-                                confirm = raw_input( "\nTest database: %s already exist. Type yes to recreate it, or no to exit" % ( kwargs.get( 'database' ) ) )
+                                confirm = input( "\nTest database: %s already exist. Type yes to recreate it, or no to exit" % ( kwargs.get( 'database' ) ) )
                             else:
-                                confirm = raw_input( "\nTest database: %s already exist. Type yes to recreate it, or no to exit" % ( kwargs.get( 'database' ) ) )
+                                confirm = input( "\nTest database: %s already exist. Type yes to recreate it, or no to exit" % ( kwargs.get( 'database' ) ) )
                             if autoclobber or confirm == 'yes':
                                 if verbosity > 1:
                                     print(("Recreating Test Database %s" % ( kwargs.get( 'database' ) )))
@@ -196,7 +196,7 @@ class DatabaseCreation ( BaseDatabaseCreation ):
                                 print ("Tests cancelled.")
                                 sys.exit( 1 )
         else:
-            confirm = raw_input("Wants to use %s as test database, Type yes to use it as test database or no to exit" % ( old_database ) )
+            confirm = input("Wants to use %s as test database, Type yes to use it as test database or no to exit" % ( old_database ) )
             if confirm == 'yes':
                 kwargs['database'] = old_database
                 self.__clean_up( self.connection.cursor() )

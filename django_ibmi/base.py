@@ -284,7 +284,6 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
                 kwargs.get('sslservercertificate'))
             del kwargs['sslservercertificate']
 
-        kwargs['conn_options'] = conn_options
         if kwargsKeys.__contains__('options'):
             kwargs.update(kwargs.get('options'))
             del kwargs['options']
