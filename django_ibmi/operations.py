@@ -457,7 +457,7 @@ class DatabaseOperations ( BaseDatabaseOperations ):
                 value = value.astimezone( utc ).replace( tzinfo=None )
             else:
                 raise ValueError( "Timezone aware datetime not supported" )
-        return unicode( value )
+        return str( value )
         
     def value_to_db_time( self, value ):
         if value is None:
@@ -474,9 +474,8 @@ class DatabaseOperations ( BaseDatabaseOperations ):
         return [lower_bound, upper_bound]
     
     def bulk_insert_sql(self, fields, num_values):
-        var_param=(int)
         values_sql = "( %s )" %(", ".join( ["%s"] * len(fields)))
-        if isinstance(num_values,var_param):
+        if isinstance(num_values, int):
             bulk_values_sql = "VALUES " + ", ".join([values_sql] * (num_values) )
         else:
             bulk_values_sql = "VALUES " + ", ".join([values_sql] * len(num_values) )

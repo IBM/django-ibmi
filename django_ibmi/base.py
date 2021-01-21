@@ -58,7 +58,6 @@ from django.db import utils
 from django.utils import timezone
 from django.conf import settings
 import warnings
-from django.utils import six
 import re
 
 DatabaseError = pyodbc.DatabaseError
@@ -171,10 +170,6 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
     
     # To get dict of connection parameters 
     def get_connection_params(self):
-        if sys.version_info.major >= 3:
-            strvar = str
-        else:
-            strvar = basestring
         kwargs = { }
 
         settings_dict = self.settings_dict
@@ -185,24 +180,24 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
         database_port = settings_dict['PORT']
         database_options = settings_dict['OPTIONS']
  
-        if database_name != '' and isinstance( database_name, strvar ):
+        if database_name != '' and isinstance( database_name, str ):
             kwargs['database'] = database_name
         else:
             raise ImproperlyConfigured( "Please specify the valid database Name to connect to" )
             
-        if isinstance( database_user, strvar ):
+        if isinstance( database_user, str ):
             kwargs['user'] = database_user
         
-        if isinstance( database_pass, strvar ):
+        if isinstance( database_pass, str ):
             kwargs['password'] = database_pass
         
-        if isinstance( database_host, strvar ):
+        if isinstance( database_host, str ):
             kwargs['host'] = database_host
         
-        if isinstance( database_port, strvar ):
+        if isinstance( database_port, str ):
             kwargs['port'] = database_port
             
-        if isinstance( database_host, strvar ):
+        if isinstance( database_host, str ):
             kwargs['host'] = database_host
         
         if isinstance( database_options, dict ):
@@ -372,8 +367,8 @@ class DB2CursorWrapper(pyodbc.Cursor):
                                               datetime.datetime):
                 param = parameters[index]
                 if timezone.is_naive(param):
-                    warnings.warn(u"Received a naive datetime (%s)"
-                                  u" while time zone support is active." % param,
+                    warnings.warn("Received a naive datetime (%s)"
+                                  " while time zone support is active." % param,
                                   RuntimeWarning)
                     default_timezone = timezone.get_default_timezone()
                     param = timezone.make_aware(param, default_timezone)
@@ -407,22 +402,13 @@ class DB2CursorWrapper(pyodbc.Cursor):
                     return super(DB2CursorWrapper, self).execute(operation,
                                                                  parameters)
             except IntegrityError as e:
-                six.reraise(utils.IntegrityError, utils.IntegrityError(
-                    *tuple(six.PY3 and e.args or (e._message,))),
-                            sys.exc_info()[2])
-                raise
+                raise utils.IntegrityError(*e.args) from e
 
             except ProgrammingError as e:
-                six.reraise(utils.ProgrammingError,
-                            utils.ProgrammingError(*tuple(
-                                six.PY3 and e.args or (e._message,))),
-                            sys.exc_info()[2])
-                raise
+                raise utils.ProgrammingError(*e.args) from e
+
             except DatabaseError as e:
-                six.reraise(utils.DatabaseError, utils.DatabaseError(
-                    *tuple(six.PY3 and e.args or (e._message,))),
-                            sys.exc_info()[2])
-                raise
+                raise utils.DatabaseError(*e.args) from e
         except TypeError:
             return None
 
@@ -440,15 +426,11 @@ class DB2CursorWrapper(pyodbc.Cursor):
                 return super(DB2CursorWrapper, self).executemany(operation,
                                                                  seq_parameters)
             except IntegrityError as e:
-                six.reraise(utils.IntegrityError, utils.IntegrityError(
-                    *tuple(six.PY3 and e.args or (e._message,))),
-                            sys.exc_info()[2])
-                raise
+                raise utils.IntegrityError(*e.args) from e
+
             except DatabaseError as e:
-                six.reraise(utils.DatabaseError, utils.DatabaseError(
-                    *tuple(six.PY3 and e.args or (e._message,))),
-                            sys.exc_info()[2])
-                raise
+                raise utils.DatabaseError(*e.args) from e
+
         except (IndexError, TypeError):
             return None
 
