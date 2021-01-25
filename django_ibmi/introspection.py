@@ -36,7 +36,7 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
     }
 
     def get_field_type(self, data_type, description):
-        return super(DatabaseIntrospection, self).get_field_type(data_type, description)
+        return super().get_field_type(data_type, description)
 
     # Converting table name to lower case.
     def table_name_converter(self, name):

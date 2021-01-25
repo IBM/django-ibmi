@@ -521,7 +521,7 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
         unique = field.unique
         field._unique = False
 
-        super(DB2SchemaEditor, self).add_field(model, field)
+        super().add_field(model, field)
 
         if field.remote_field is not None and hasattr(field.remote_field, 'through'):
             rel_condition = field.remote_field.through._meta.auto_created
@@ -581,8 +581,7 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
                     raise e
 
     def alter_db_table(self, model, old_db_table, new_db_table):
-        super(DB2SchemaEditor, self).alter_db_table(
-            model, old_db_table, new_db_table)
+        super().alter_db_table(model, old_db_table, new_db_table)
 
     def _alter_many_to_many(self, model, old_field, new_field, strict):
         deferred_constraints = {
@@ -616,8 +615,7 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
                                           old_field_rel_through, defer_pk=True, defer_unique=True, defer_index=True)
 
             self._reorg_tables()
-            super(DB2SchemaEditor, self)._alter_many_to_many(
-                model, old_field, new_field, strict)
+            super()._alter_many_to_many(model, old_field, new_field, strict)
             self._restore_constraints_check(
                 deferred_constraints, rel_old_field, rel_new_field, new_field.rel.through)
 
