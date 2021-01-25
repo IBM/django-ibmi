@@ -20,7 +20,6 @@
 DB2 database backend for Django.
 Requires: pyodbc
 """
-import sys
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -41,7 +40,6 @@ try:
 except ImportError:
     from django.db.backends.base.validation import BaseDatabaseValidation
 
-from django.db.backends.signals import connection_created
 
 # Importing internal classes from django_ibmi package.
 from .client import DatabaseClient
@@ -69,26 +67,26 @@ OperationalError = pyodbc.OperationalError
 InternalError = pyodbc.InternalError
 ProgrammingError = pyodbc.ProgrammingError
 NotSupportedError = pyodbc.NotSupportedError
-    
+
 
 dbms_name = 'dbms_name'
 
-    
-class DatabaseFeatures( BaseDatabaseFeatures ):    
+
+class DatabaseFeatures(BaseDatabaseFeatures):
     can_use_chunked_reads = True
-    
-    #Save point is supported by DB2.
+
+    # Save point is supported by DB2.
     uses_savepoints = True
-    
-    #Custom query class has been implemented 
-    #django.db.backends.db2.query.query_class.DB2QueryClass
+
+    # Custom query class has been implemented
+    # django.db.backends.db2.query.query_class.DB2QueryClass
     uses_custom_query_class = True
-    
-    #transaction is supported by DB2
+
+    # transaction is supported by DB2
     supports_transactions = True
-    
+
     supports_tablespaces = True
-    
+
     uppercases_column_names = True
     interprets_empty_strings_as_nulls = False
     allows_primary_key_0 = True
@@ -103,7 +101,7 @@ class DatabaseFeatures( BaseDatabaseFeatures ):
     can_distinct_on_fields = False
     supports_paramstyle_pyformat = False
     supports_sequence_reset = True
-    #DB2 doesn't take default values as parameter
+    # DB2 doesn't take default values as parameter
     requires_literal_defaults = True
     has_case_insensitive_like = True
     can_introspect_big_integer_field = True
@@ -113,19 +111,21 @@ class DatabaseFeatures( BaseDatabaseFeatures ):
     can_introspect_null = True
     can_introspect_ip_address_field = False
     can_introspect_time_field = True
-    
-class DatabaseValidation( BaseDatabaseValidation ):    
-    #Need to do validation for IBM i and pyodbc version
-    def validate_field( self, errors, opts, f ):
+
+
+class DatabaseValidation(BaseDatabaseValidation):
+    # Need to do validation for IBM i and pyodbc version
+    def validate_field(self, errors, opts, f):
         pass
 
-class DatabaseWrapper( BaseDatabaseWrapper ):
-    
+
+class DatabaseWrapper(BaseDatabaseWrapper):
+
     """
-    This is the base class for DB2 backend support for Django. The under lying 
+    This is the base class for DB2 backend support for Django. The under lying
     wrapper is pyodbc.
     """
-    data_types={}
+    data_types = {}
     vendor = 'DB2'
     operators = {
         "exact":        "= %s",
@@ -150,27 +150,27 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
     introspection_class = DatabaseIntrospection
     validation_class = DatabaseValidation
     ops_class = DatabaseOperations
- 
+
     # Constructor of DB2 backend support. Initializing all other classes.
-    def __init__( self, *args ):
-        super( DatabaseWrapper, self ).__init__( *args )
-        self.ops = DatabaseOperations( self )
-        self.client = DatabaseClient( self )
-        self.features = DatabaseFeatures( self )
-        self.creation = DatabaseCreation( self )
-        self.data_types=self.creation.data_types
-        self.data_type_check_constraints=self.creation.data_type_check_constraints
-        self.introspection = DatabaseIntrospection( self )
-        self.validation = DatabaseValidation( self )
+    def __init__(self, *args):
+        super(DatabaseWrapper, self).__init__(*args)
+        self.ops = DatabaseOperations(self)
+        self.client = DatabaseClient(self)
+        self.features = DatabaseFeatures(self)
+        self.creation = DatabaseCreation(self)
+        self.data_types = self.creation.data_types
+        self.data_type_check_constraints = self.creation.data_type_check_constraints
+        self.introspection = DatabaseIntrospection(self)
+        self.validation = DatabaseValidation(self)
         self.databaseWrapper = DatabaseWrapper()
-    
+
     # Method to check if connection is live or not.
-    def __is_connection( self ):
+    def __is_connection(self):
         return self.connection is not None
-    
-    # To get dict of connection parameters 
+
+    # To get dict of connection parameters
     def get_connection_params(self):
-        kwargs = { }
+        kwargs = {}
 
         settings_dict = self.settings_dict
         database_name = settings_dict['NAME']
@@ -179,65 +179,66 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
         database_host = settings_dict['HOST']
         database_port = settings_dict['PORT']
         database_options = settings_dict['OPTIONS']
- 
-        if database_name != '' and isinstance( database_name, str ):
+
+        if database_name != '' and isinstance(database_name, str):
             kwargs['database'] = database_name
         else:
-            raise ImproperlyConfigured( "Please specify the valid database Name to connect to" )
-            
-        if isinstance( database_user, str ):
+            raise ImproperlyConfigured(
+                "Please specify the valid database Name to connect to")
+
+        if isinstance(database_user, str):
             kwargs['user'] = database_user
-        
-        if isinstance( database_pass, str ):
+
+        if isinstance(database_pass, str):
             kwargs['password'] = database_pass
-        
-        if isinstance( database_host, str ):
+
+        if isinstance(database_host, str):
             kwargs['host'] = database_host
-        
-        if isinstance( database_port, str ):
+
+        if isinstance(database_port, str):
             kwargs['port'] = database_port
-            
-        if isinstance( database_host, str ):
+
+        if isinstance(database_host, str):
             kwargs['host'] = database_host
-        
-        if isinstance( database_options, dict ):
+
+        if isinstance(database_options, dict):
             kwargs['options'] = database_options
 
-        if ( settings_dict.keys() ).__contains__( 'PCONNECT' ):
+        if (settings_dict.keys()).__contains__('PCONNECT'):
             kwargs['PCONNECT'] = settings_dict['PCONNECT']
 
-        if('CURRENTSCHEMA' in settings_dict):
+        if 'CURRENTSCHEMA' in settings_dict:
             database_schema = settings_dict['CURRENTSCHEMA']
-            if isinstance( database_schema, str ):
+            if isinstance(database_schema, str):
                 kwargs['currentschema'] = database_schema
 
-        if('SECURITY'  in settings_dict):
+        if 'SECURITY' in settings_dict:
             database_security = settings_dict['SECURITY']
-            if isinstance( database_security, str ):
+            if isinstance(database_security, str):
                 kwargs['security'] = database_security
 
-        if('SSLCLIENTKEYDB'  in settings_dict):
+        if 'SSLCLIENTKEYDB' in settings_dict:
             database_sslclientkeydb = settings_dict['SSLCLIENTKEYDB']
-            if isinstance( database_sslclientkeydb, str ):
+            if isinstance(database_sslclientkeydb, str):
                 kwargs['sslclientkeydb'] = database_sslclientkeydb
 
-        if('SSLCLIENTKEYSTOREDBPASSWORD'  in settings_dict):
+        if 'SSLCLIENTKEYSTOREDBPASSWORD' in settings_dict:
             database_sslclientkeystoredbpassword = settings_dict['SSLCLIENTKEYSTOREDBPASSWORD']
-            if isinstance( database_sslclientkeystoredbpassword, str ):
+            if isinstance(database_sslclientkeystoredbpassword, str):
                 kwargs['sslclientkeystoredbpassword'] = database_sslclientkeystoredbpassword
 
-        if('SSLCLIENTKEYSTASH'  in settings_dict):
-            database_sslclientkeystash =settings_dict['SSLCLIENTKEYSTASH']
-            if isinstance( database_sslclientkeystash, str ):
+        if 'SSLCLIENTKEYSTASH' in settings_dict:
+            database_sslclientkeystash = settings_dict['SSLCLIENTKEYSTASH']
+            if isinstance(database_sslclientkeystash, str):
                 kwargs['sslclientkeystash'] = database_sslclientkeystash
 
-        if('SSLSERVERCERTIFICATE'  in settings_dict):
-            database_sslservercertificate =settings_dict['SSLSERVERCERTIFICATE']
-            if isinstance( database_sslservercertificate, str ):
+        if 'SSLSERVERCERTIFICATE' in settings_dict:
+            database_sslservercertificate = settings_dict['SSLSERVERCERTIFICATE']
+            if isinstance(database_sslservercertificate, str):
                 kwargs['sslservercertificate'] = database_sslservercertificate
 
         return kwargs
-    
+
     # To get new connection from Database
     def get_new_connection(self, conn_params):
         SchemaFlag = False
@@ -254,32 +255,32 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
         else:
             kwargs['dsn'] = kwargs.get('database')
 
-        if (kwargsKeys.__contains__('currentschema')):
-            kwargs['dsn'] += "CurrentSchema=%s;" % (kwargs.get('currentschema'))
-            currentschema = kwargs.get('currentschema')
+        if kwargsKeys.__contains__('currentschema'):
+            kwargs['dsn'] += "CurrentSchema=%s;" % (
+                kwargs.get('currentschema'))
             SchemaFlag = True
             del kwargs['currentschema']
 
-        if (kwargsKeys.__contains__('security')):
+        if kwargsKeys.__contains__('security'):
             kwargs['dsn'] += "security=%s;" % (kwargs.get('security'))
             del kwargs['security']
 
-        if (kwargsKeys.__contains__('sslclientkeystoredb')):
+        if kwargsKeys.__contains__('sslclientkeystoredb'):
             kwargs['dsn'] += "SSLCLIENTKEYSTOREDB=%s;" % (
                 kwargs.get('sslclientkeystoredb'))
             del kwargs['sslclientkeystoredb']
 
-        if (kwargsKeys.__contains__('sslclientkeystoredbpassword')):
+        if kwargsKeys.__contains__('sslclientkeystoredbpassword'):
             kwargs['dsn'] += "SSLCLIENTKEYSTOREDBPASSWORD=%s;" % (
                 kwargs.get('sslclientkeystoredbpassword'))
             del kwargs['sslclientkeystoredbpassword']
 
-        if (kwargsKeys.__contains__('sslclientkeystash')):
+        if kwargsKeys.__contains__('sslclientkeystash'):
             kwargs['dsn'] += "SSLCLIENTKEYSTASH=%s;" % (
                 kwargs.get('sslclientkeystash'))
             del kwargs['sslclientkeystash']
 
-        if (kwargsKeys.__contains__('sslservercertificate')):
+        if kwargsKeys.__contains__('sslservercertificate'):
             kwargs['dsn'] += "SSLSERVERCERTIFICATE=%s;" % (
                 kwargs.get('sslservercertificate'))
             del kwargs['sslservercertificate']
@@ -290,9 +291,7 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
         if kwargsKeys.__contains__('port'):
             del kwargs['port']
 
-        pconnect_flag = False
         if kwargsKeys.__contains__('PCONNECT'):
-            pconnect_flag = kwargs['PCONNECT']
             del kwargs['PCONNECT']
 
         connection = pyodbc.connect(**kwargs)
@@ -300,38 +299,38 @@ class DatabaseWrapper( BaseDatabaseWrapper ):
 
         if SchemaFlag:
             # TODO implement set_current_schema
-            schema = connection.set_current_schema(currentschema)
+            # schema = connection.set_current_schema(currentschema)
+            pass
         self.features.has_bulk_insert = True
         return connection
 
-    def create_cursor( self , name = None):
+    def create_cursor(self, name=None):
         return DB2CursorWrapper(self.connection)
 
-    def init_connection_state( self ):
+    def init_connection_state(self):
         pass
 
     def is_usable(self):
-        #TODO implement is_usable method correctly
+        # TODO implement is_usable method correctly
         return True
-            
+
     def _set_autocommit(self, autocommit):
         self.connection.autocommit = autocommit
-     
-    def close( self ):
+
+    def close(self):
         self.validate_thread_sharing()
         if self.connection is not None:
             self.connection.close()
             self.connection = None
-        
-    def get_server_version( self ):
+
+    def get_server_version(self):
         if not self.connection:
             self.cursor()
         return tuple(int(version) for version in
                      self.connection.server_info()[1].split("."))
-    
+
     def schema_editor(self, *args, **kwargs):
         return DB2SchemaEditor(self, *args, **kwargs)
-
 
 
 class DB2CursorWrapper(pyodbc.Cursor):
@@ -350,7 +349,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
     def next(self):
         row = self.fetchone()
-        if row == None:
+        if row is None:
             raise StopIteration
         return row
 
@@ -375,15 +374,13 @@ class DB2CursorWrapper(pyodbc.Cursor):
                 parameters[index] = param
         return tuple(parameters)
 
-    # Over-riding this method to modify SQLs which contains format parameter to qmark.
+    # Over-riding this method to modify SQLs which contains format parameter
+    # to qmark.
     def execute(self, operation, parameters=()):
         operation = str(operation)
         try:
-            if operation.find('ALTER TABLE') == 0 and getattr(self.connection,
-                                                              dbms_name) != 'DB2':
-                doReorg = 1
-            else:
-                doReorg = 0
+
+            doReorg = 1 if operation.find('ALTER TABLE') == 0 and getattr(self.connection, dbms_name) != 'DB2' else 0
             if operation.count("db2regexExtraField(%s)") > 0:
                 operation = operation.replace("db2regexExtraField(%s)", "")
                 operation = operation % parameters
@@ -393,9 +390,8 @@ class DB2CursorWrapper(pyodbc.Cursor):
             parameters = self._format_parameters(parameters)
 
             try:
-                if (doReorg == 1):
-                    super(DB2CursorWrapper, self).execute(operation,
-                                                          parameters)
+                if doReorg == 1:
+                    super(DB2CursorWrapper, self).execute(operation, parameters)
                     return self._reorg_tables()
                 else:
                     return super(DB2CursorWrapper, self).execute(operation,
@@ -408,6 +404,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
             except DatabaseError as e:
                 raise utils.DatabaseError(*e.args) from e
+
         except TypeError:
             return None
 

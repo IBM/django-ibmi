@@ -24,37 +24,35 @@ try:
     from django.db.backends import BaseDatabaseClient
 except ImportError:
     from django.db.backends.base.client import BaseDatabaseClient
-
-import types
-
 import os
 
-class DatabaseClient( BaseDatabaseClient ):
-    
-    #Over-riding base method to provide shell support for DB2 through Django.
-    def runshell( self ):
+
+class DatabaseClient(BaseDatabaseClient):
+
+    # Over-riding base method to provide shell support for DB2 through Django.
+    def runshell(self):
         settings_dict = self.connection.settings_dict
         database_name = settings_dict['NAME']
         database_user = settings_dict['USER']
         database_password = settings_dict['PASSWORD']
-            
+
         cmdArgs = ["db2"]
-        
-        if ( os.name == 'nt' ):
+
+        if (os.name == 'nt'):
             cmdArgs += ["db2 connect to %s" % database_name]
         else:
             cmdArgs += ["connect to %s" % database_name]
 
-        if ( isinstance( database_user, str ) and
-            ( database_user != '' ) ):
+        if (isinstance(database_user, str) and
+                (database_user != '')):
             cmdArgs += ["user %s" % database_user]
-            
-            if ( isinstance( database_password, str ) and
-                ( database_password != '' ) ):
+
+            if (isinstance(database_password, str) and
+                    (database_password != '')):
                 cmdArgs += ["using %s" % database_password]
-                
+
         # db2cmd is the shell which is required to run db2 commands on windows.
-        if ( os.name == 'nt' ):
-            os.execvp( 'db2cmd', cmdArgs )
+        if (os.name == 'nt'):
+            os.execvp('db2cmd', cmdArgs)
         else:
-            os.execvp( 'db2', cmdArgs )
+            os.execvp('db2', cmdArgs)
