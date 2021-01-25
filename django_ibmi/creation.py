@@ -290,15 +290,15 @@ class DatabaseCreation (BaseDatabaseCreation):
                                     unique_list)
                                 model._meta.unique_together_index.append(
                                     unique_together)
-            sql, references = super(DatabaseCreation, self).sql_create_model(
-                model, style, known_models)
+            sql, references = super().sql_create_model(model, style,
+                                                       known_models)
 
             for i in temp_changed_uvalues:
                 model._meta.local_fields[i]._unique = True
             model._meta.unique_together = temp_unique_together
             return sql, references
         else:
-            return super(DatabaseCreation, self).sql_create_model(model, style, known_models)
+            return super().sql_create_model(model, style, known_models)
 
     # Private method to clean up database.
     def __clean_up(self, cursor):

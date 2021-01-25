@@ -40,12 +40,11 @@ class SQLCompiler(compiler.SQLCompiler):
                         self.query.distinct = False
                         break
         if not (with_limits and (self.query.high_mark is not None or self.query.low_mark)):
-            return super(SQLCompiler, self).as_sql(False, with_col_aliases)
+            return super().as_sql(False, with_col_aliases)
         else:
             if self.query.high_mark == self.query.low_mark:
                 return '', ()
-            sql_ori, params = super(SQLCompiler, self).as_sql(
-                False, with_col_aliases)
+            sql_ori, params = super().as_sql(False, with_col_aliases)
             if self.query.low_mark == 0:
                 return sql_ori + " FETCH FIRST %s ROWS ONLY" % self.query.high_mark, params
             sql_split = sql_ori.split(" FROM ")

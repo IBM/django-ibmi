@@ -39,7 +39,7 @@ dbms_name = 'dbms_name'
 
 class DatabaseOperations (BaseDatabaseOperations):
     def __init__(self, connection):
-        super(DatabaseOperations, self).__init__(self)
+        super().__init__(self)
         self.connection = connection
 
     compiler_module = "django_ibmi.compiler"
@@ -73,8 +73,7 @@ class DatabaseOperations (BaseDatabaseOperations):
             raise NotImplementedError("sample variance function not supported")
 
     def get_db_converters(self, expression):
-        converters = super(DatabaseOperations,
-                           self).get_db_converters(expression)
+        converters = super().get_db_converters(expression)
 
         field_type = expression.output_field.get_internal_type()
         if field_type in ('BinaryField',):
@@ -112,11 +111,11 @@ class DatabaseOperations (BaseDatabaseOperations):
         elif operator == '-':
             strr = str(sub_expressions[1])
             sub_expressions[1] = strr.replace('+', '-')
-            return super(DatabaseOperations, self).combine_expression(operator, sub_expressions)
+            return super().combine_expression(operator, sub_expressions)
         else:
             strr = str(sub_expressions[1])
             sub_expressions[1] = strr.replace('+', '-')
-            return super(DatabaseOperations, self).combine_expression(operator, sub_expressions)
+            return super().combine_expression(operator, sub_expressions)
 
     def convert_binaryfield_value(self, value, expression, connections, context):
         return value

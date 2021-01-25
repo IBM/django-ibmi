@@ -30,13 +30,12 @@ def query_class(QueryClass):
         # To get ride of LIMIT/OFFSET problem in DB2, this method has been implemented.
         def as_sql(self, with_limits=True, with_col_aliases=False):
             if not (with_limits and (self.high_mark is not None or self.low_mark)):
-                return super(DB2QueryClass, self).as_sql(False, with_col_aliases)
+                return super().as_sql(False, with_col_aliases)
             else:
                 if self.high_mark == self.low_mark:
                     return '', ()
 
-                sql_ori, params = super(DB2QueryClass, self).as_sql(
-                    False, with_col_aliases)
+                sql_ori, params = super().as_sql(False, with_col_aliases)
                 sql_split = sql_ori.split(" FROM ")
 
                 sql_sec = ""
@@ -118,8 +117,8 @@ def query_class(QueryClass):
                     filter_expr[1] = filter_expr[1].upper()
 
                 filter_expr = tuple(filter_expr)
-            return super(DB2QueryClass, self).add_filter(filter_expr, connector,
-                                                         negate, trim, can_reuse, process_extras)
+            return super().add_filter(filter_expr, connector, negate, trim,
+                                      can_reuse, process_extras)
 
     return DB2QueryClass
 

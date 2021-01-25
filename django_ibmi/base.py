@@ -153,7 +153,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
     # Constructor of DB2 backend support. Initializing all other classes.
     def __init__(self, *args):
-        super(DatabaseWrapper, self).__init__(*args)
+        super().__init__(*args)
         self.ops = DatabaseOperations(self)
         self.client = DatabaseClient(self)
         self.features = DatabaseFeatures(self)
@@ -341,8 +341,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
     """
 
     def __init__(self, connection):
-        super(DB2CursorWrapper, self).__init__(connection.conn_handler,
-                                               connection)
+        super().__init__(connection.conn_handler, connection)
 
     def __iter__(self):
         return self
@@ -390,12 +389,9 @@ class DB2CursorWrapper(pyodbc.Cursor):
             parameters = self._format_parameters(parameters)
 
             try:
+                super().execute(operation, parameters)
                 if doReorg == 1:
-                    super(DB2CursorWrapper, self).execute(operation, parameters)
                     return self._reorg_tables()
-                else:
-                    return super(DB2CursorWrapper, self).execute(operation,
-                                                                 parameters)
             except IntegrityError as e:
                 raise utils.IntegrityError(*e.args) from e
 
@@ -419,8 +415,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
             seq_parameters = [self._format_parameters(parameters) for
                               parameters in seq_parameters]
             try:
-                return super(DB2CursorWrapper, self).executemany(operation,
-                                                                 seq_parameters)
+                return super().executemany(operation, seq_parameters)
             except IntegrityError as e:
                 raise utils.IntegrityError(*e.args) from e
 
@@ -436,19 +431,19 @@ class DB2CursorWrapper(pyodbc.Cursor):
         res = []
         reorgSQLs = []
         parameters = ()
-        super(DB2CursorWrapper, self).execute(checkReorgSQL, parameters)
-        res = super(DB2CursorWrapper, self).fetchall()
+        super().execute(checkReorgSQL, parameters)
+        res = super().fetchall()
         if res:
             for sName, tName in res:
                 reorgSQL = '''CALL SYSPROC.ADMIN_CMD('REORG TABLE "%(sName)s"."%(tName)s"')''' % {
                     'sName': sName, 'tName': tName}
                 reorgSQLs.append(reorgSQL)
             for sql in reorgSQLs:
-                super(DB2CursorWrapper, self).execute(sql)
+                super().execute(sql)
 
     # Over-riding this method to modify result set containing datetime and time zone support is active
     def fetchone(self):
-        row = super(DB2CursorWrapper, self).fetchone()
+        row = super().fetchone()
         if row is None:
             return row
         else:
@@ -456,7 +451,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
     # Over-riding this method to modify result set containing datetime and time zone support is active
     def fetchmany(self, size=0):
-        rows = super(DB2CursorWrapper, self).fetchmany(size)
+        rows = super().fetchmany(size)
         if rows is None:
             return rows
         else:
@@ -464,7 +459,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
     # Over-riding this method to modify result set containing datetime and time zone support is active
     def fetchall(self):
-        rows = super(DB2CursorWrapper, self).fetchall()
+        rows = super().fetchall()
         if rows is None:
             return rows
         else:
