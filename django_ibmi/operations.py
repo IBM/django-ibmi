@@ -23,7 +23,6 @@ except ImportError:
     from django.db.backends.base.operations import BaseDatabaseOperations
 
 from . import query
-import sys
 import datetime
 try:
     import pytz
@@ -32,7 +31,7 @@ except ImportError:
 
 from django.db import utils
 
-from django.utils.timezone import is_aware, is_naive, utc
+from django.utils.timezone import is_aware, utc
 from django.conf import settings
 
 dbms_name = 'dbms_name'
@@ -46,15 +45,17 @@ class DatabaseOperations (BaseDatabaseOperations):
     compiler_module = "django_ibmi.compiler"
 
     def cache_key_culling_sql(self):
-        return '''SELECT cache_key 
+        return '''SELECT cache_key
                     FROM (SELECT cache_key, ( ROW_NUMBER() OVER() ) AS ROWNUM FROM %s ORDER BY cache_key)
                     WHERE ROWNUM = %%s + 1
         '''
 
     def check_aggregate_support(self, aggregate):
-        # In DB2 data type of the result is the same as the data type of the argument values for AVG aggregation
+        # In DB2 data type of the result is the same as the data type of the
+        # argument values for AVG aggregation
         # But Django aspect in Float regardless of data types of argument value
-        # http://publib.boulder.ibm.com/infocenter/db2luw/v9r7/index.jsp?topic=/com.ibm.db2.luw.apdv.cli.doc/doc/c0007645.html
+        # http://publib.boulder.ibm.com/infocenter/db2luw/v9r7/index.jsp?topic=
+        # /com.ibm.db2.luw.apdv.cli.doc/doc/c0007645.html
         if aggregate.sql_function == 'AVG':
             aggregate.sql_template = '%(function)s(DOUBLE(%(field)s))'
         # In DB2 equivalent sql function of STDDEV_POP is STDDEV
@@ -123,11 +124,12 @@ class DatabaseOperations (BaseDatabaseOperations):
     def format_for_duration_arithmetic(self, sql):
         return ' %s MICROSECONDS' % sql
 
-    # Function to extract day, month or year from the date.
-    # Reference: http://publib.boulder.ibm.com/infocenter/db2luw/v9r5/topic/com.ibm.db2.luw.sql.ref.doc/doc/r0023457.html
+    # Function to extract day, month or year from the date. Reference:
+    # http://publib.boulder.ibm.com/infocenter/db2luw/v9r5/topic/com.ibm.db2
+    # .luw.sql.ref.doc/doc/r0023457.html
     def date_extract_sql(self, lookup_type, field_name):
         if lookup_type.upper() == 'WEEK_DAY':
-            return " DAYOFWEEK(%s) " % (field_name)
+            return " DAYOFWEEK(%s) " % field_name
         else:
             return " %s(%s) " % (lookup_type.upper(), field_name)
 
@@ -151,7 +153,8 @@ class DatabaseOperations (BaseDatabaseOperations):
                 min = (td.seconds % (60 * 60)) / 60
             return hr, min
 
-    # Function to extract time zone-aware day, month or day of week from timestamps
+    # Function to extract time zone-aware day, month or day of week from
+    # timestamps
     def datetime_extract_sql(self, lookup_type, field_name, tzname):
         if settings.USE_TZ:
             hr, min = self._get_utcoffset(tzname)
@@ -167,9 +170,10 @@ class DatabaseOperations (BaseDatabaseOperations):
         else:
             return " %s(%s) " % (lookup_type.upper(), field_name), []
 
-    # Truncating the date value on the basic of lookup type.
-    # e.g If input is 2008-12-04 and month then output will be 2008-12-01 00:00:00
-    # Reference: http://www.ibm.com/developerworks/data/library/samples/db2/0205udfs/index.html
+    # Truncating the date value on the basic of lookup type. e.g If input is
+    # 2008-12-04 and month then output will be 2008-12-01 00:00:00 Reference:
+    # http://www.ibm.com/developerworks/data/library/samples/db2/0205udfs
+    # /index.html
     def date_trunc_sql(self, lookup_type, field_name):
         sql = "TIMESTAMP(DATE(SUBSTR(CHAR(%s), 1, %d) || '%s'), TIME('00:00:00'))"
         if lookup_type.upper() == 'DAY':
@@ -180,7 +184,8 @@ class DatabaseOperations (BaseDatabaseOperations):
             sql = sql % (field_name, 4, '-01-01')
         return sql
 
-    # Truncating the time zone-aware timestamps value on the basic of lookup type
+    # Truncating the time zone-aware timestamps value on the basic of lookup
+    # type
     def datetime_trunc_sql(self, lookup_type, field_name, tzname):
         sql = "TIMESTAMP(SUBSTR(CHAR(%s), 1, %d) || '%s')"
         if settings.USE_TZ:
@@ -222,7 +227,8 @@ class DatabaseOperations (BaseDatabaseOperations):
 
     # Dropping auto generated property of the identity column.
     def drop_sequence_sql(self, table):
-        return "ALTER TABLE %s ALTER COLUMN ID DROP IDENTITY" % (self.quote_name(table))
+        return "ALTER TABLE %s ALTER COLUMN ID DROP IDENTITY" % \
+               (self.quote_name(table))
 
     # This function casts the field and returns it for use in the where clause
     def field_cast_sql(self, db_type, internal_type=None):
@@ -235,12 +241,13 @@ class DatabaseOperations (BaseDatabaseOperations):
         sql = "WHERE %s = ?" % field_name
         return sql
 
-    # Function to return value of auto-generated field of last executed insert query.
+    # Function to return value of auto-generated field of last executed
+    # insert query.
     def last_insert_id(self, cursor, table_name, pk_name):
         return cursor.last_identity_val
 
-    # In case of WHERE clause, if the search is required to be case insensitive then converting
-    # left hand side field to upper.
+    # In case of WHERE clause, if the search is required to be case
+    # insensitive then converting left hand side field to upper.
     def lookup_cast(self, lookup_type, internal_type=None):
         if lookup_type in ('iexact', 'icontains', 'istartswith', 'iendswith'):
             return "UPPER(%s)"
@@ -248,13 +255,15 @@ class DatabaseOperations (BaseDatabaseOperations):
 
     # As DB2 v91 specifications,
     # Maximum length of a table name and Maximum length of a column name is 128
-    # http://publib.boulder.ibm.com/infocenter/db2e/v9r1/index.jsp?topic=/com.ibm.db2e.doc/db2elimits.html
+    # http://publib.boulder.ibm.com/infocenter/db2e/v9r1/index.jsp?topic=/
+    # com.ibm.db2e.doc/db2elimits.html
     def max_name_length(self):
         return 128
 
     # As DB2 v97 specifications,
     # Maximum length of a database name is 8
-    # http://publib.boulder.ibm.com/infocenter/db2luw/v9r7/topic/com.ibm.db2.luw.sql.ref.doc/doc/r0001029.html
+    # http://publib.boulder.ibm.com/infocenter/db2luw/v9r7/topic/com.ibm.db2.
+    # luw.sql.ref.doc/doc/r0001029.html
     def max_db_name_length(self):
         return 8
 
@@ -268,29 +277,35 @@ class DatabaseOperations (BaseDatabaseOperations):
     # Function to quote the name of schema, table and column.
     def quote_name(self, name=None):
         name = name.upper()
-        if(name.startswith("\"") & name.endswith("\"")):
+        if name.startswith("\"") & name.endswith("\""):
             return name
 
-        if(name.startswith("\"")):
+        if name.startswith("\""):
             return "%s\"" % name
 
-        if(name.endswith("\"")):
+        if name.endswith("\""):
             return "\"%s" % name
 
         return "\"%s\"" % name
 
     # SQL to return RANDOM number.
-    # Reference: http://publib.boulder.ibm.com/infocenter/db2luw/v8/topic/com.ibm.db2.udb.doc/admin/r0000840.htm
+    # Reference: http://publib.boulder.ibm.com/infocenter/db2luw/v8/topic/com.
+    # ibm.db2.udb.doc/admin/r0000840.htm
     def random_function_sql(self):
         return "SYSFUN.RAND()"
 
     def regex_lookup(self, lookup_type):
         if lookup_type == 'regex':
-            return '''xmlcast( xmlquery('fn:matches(xs:string($c), "%%s")' passing %s as "c") as varchar(5)) = 'true' db2regexExtraField(%s)'''
+            return '''xmlcast( xmlquery('fn:matches(xs:string($c), "%%s")'
+            passing %s as "c") as varchar(5)) = 'true' db2regexExtraField(%s)
+            '''
         else:
-            return '''xmlcast( xmlquery('fn:matches(xs:string($c), "%%s", "i")' passing %s as "c") as varchar(5)) = 'true' db2regexExtraField(%s)'''
+            return '''xmlcast( xmlquery('fn:matches(xs:string($c), "%%s",
+            "i")' passing %s as "c") as varchar(5)) = 'true'
+            db2regexExtraField(%s) '''
 
-    # As save-point is supported by DB2, following function will return SQL to create savepoint.
+    # As save-point is supported by DB2, following function will return SQL
+    # to create savepoint.
     def savepoint_create_sql(self, sid):
         return "SAVEPOINT %s ON ROLLBACK RETAIN CURSORS" % sid
 
@@ -302,8 +317,8 @@ class DatabaseOperations (BaseDatabaseOperations):
     def savepoint_rollback_sql(self, sid):
         return "ROLLBACK TO SAVEPOINT %s" % sid
 
-    # Deleting all the rows from the list of tables provided and resetting all the
-    # sequences.
+    # Deleting all the rows from the list of tables provided and resetting
+    # all the sequences.
     def sql_flush(self, style, tables, sequences, allow_cascade=False):
         # TODO implement get_current_schema method
         curr_schema = self.connection.connection.get_current_schema().upper()
@@ -321,16 +336,19 @@ class DatabaseOperations (BaseDatabaseOperations):
                     DECLARE fkconst varchar(128);
                     DECLARE row_count integer;
                     DECLARE alter_fkey_sql varchar(350);
-                    DECLARE cur1 CURSOR for SELECT %(fk_tab)s, %(fk_const)s FROM %(fk_systab)s WHERE %(type_check_string)s %(fk_tabschema)s = curr_schema and ENFORCED = 'N';
-                    DECLARE cur2 CURSOR for SELECT %(fk_tab)s, %(fk_const)s FROM %(fk_systab)s WHERE %(type_check_string)s %(fk_tab)s = django_tabname and %(fk_tabschema)s = curr_schema and ENFORCED = 'Y';
+                    DECLARE cur1 CURSOR for SELECT %(fk_tab)s, %(fk_const)s FROM %(fk_systab)s WHERE %(type_check_string)s
+                    %(fk_tabschema)s = curr_schema and ENFORCED = 'N';
+                    DECLARE cur2 CURSOR for SELECT %(fk_tab)s, %(fk_const)s FROM %(fk_systab)s WHERE %(type_check_string)s
+                    %(fk_tab)s = django_tabname and %(fk_tabschema)s = curr_schema and ENFORCED = 'Y';
                     IF ( django_tabname = '' ) THEN
                         SET row_count = 0;
-                        SELECT count( * ) INTO row_count FROM %(fk_systab)s WHERE %(type_check_string)s %(fk_tabschema)s = curr_schema and ENFORCED = 'N';
+                        SELECT count( * ) INTO row_count FROM %(fk_systab)s WHERE %(type_check_string)s %(fk_tabschema)s =
+                        curr_schema and ENFORCED = 'N';
                         IF ( row_count > 0 ) THEN
                             OPEN cur1;
-                            WHILE( row_count > 0 ) DO 
+                            WHILE( row_count > 0 ) DO
                                 FETCH cur1 INTO fktable, fkconst;
-                                IF ( LOCATE( ' ', fktable ) > 0 ) THEN 
+                                IF ( LOCATE( ' ', fktable ) > 0 ) THEN
                                     SET alter_fkey_sql = 'ALTER TABLE ' || '\"' || fktable || '\"' ||' ALTER FOREIGN KEY ';
                                 ELSE
                                     SET alter_fkey_sql = 'ALTER TABLE ' || fktable || ' ALTER FOREIGN KEY ';
@@ -347,12 +365,13 @@ class DatabaseOperations (BaseDatabaseOperations):
                         END IF;
                     ELSE
                         SET row_count = 0;
-                        SELECT count( * ) INTO row_count FROM %(fk_systab)s WHERE %(type_check_string)s %(fk_tab)s = django_tabname and %(fk_tabschema)s = curr_schema and ENFORCED = 'Y';
+                        SELECT count( * ) INTO row_count FROM %(fk_systab)s WHERE %(type_check_string)s %(fk_tab)s =
+                        django_tabname and %(fk_tabschema)s = curr_schema and ENFORCED = 'Y';
                         IF ( row_count > 0 ) THEN
                             OPEN cur2;
-                            WHILE( row_count > 0 ) DO 
+                            WHILE( row_count > 0 ) DO
                                 FETCH cur2 INTO fktable, fkconst;
-                                IF ( LOCATE( ' ', fktable ) > 0 ) THEN 
+                                IF ( LOCATE( ' ', fktable ) > 0 ) THEN
                                     SET alter_fkey_sql = 'ALTER TABLE ' || '\"' || fktable || '\"' ||' ALTER FOREIGN KEY ';
                                 ELSE
                                     SET alter_fkey_sql = 'ALTER TABLE ' || fktable || ' ALTER FOREIGN KEY ';
@@ -368,7 +387,8 @@ class DatabaseOperations (BaseDatabaseOperations):
                             CLOSE cur2;
                         END IF;
                     END IF;
-                END P1''' % {'fk_tab': fk_tab, 'fk_tabschema': fk_tabschema, 'fk_const': fk_const, 'fk_systab': fk_systab, 'type_check_string': type_check_string})
+                END P1''' % {'fk_tab': fk_tab, 'fk_tabschema': fk_tabschema, 'fk_const': fk_const, 'fk_systab': fk_systab,
+                             'type_check_string': type_check_string})
 
             for table in tables:
                 sqls.append("CALL FKEY_ALT_CONST( '%s', '%s' );" %
@@ -383,9 +403,10 @@ class DatabaseOperations (BaseDatabaseOperations):
             sqls.append("DROP PROCEDURE FKEY_ALT_CONST;")
 
             for sequence in sequences:
-                if(sequence['column'] != None):
+                if sequence['column'] is not None:
                     sqls.append(style.SQL_KEYWORD("ALTER TABLE") + " " +
-                                style.SQL_TABLE("%s" % self.quote_name(sequence['table'])) +
+                                style.SQL_TABLE(
+                                    "%s" % self.quote_name(sequence['table'])) +
                                 " " +
                                 style.SQL_KEYWORD("ALTER COLUMN") + " %s "
                                 % self.quote_name(sequence['column']) +
@@ -408,7 +429,7 @@ class DatabaseOperations (BaseDatabaseOperations):
                         self.quote_name(field.column), self.quote_name(table))
                     cursor.execute(max_sql)
                     max_id = [row[0] for row in cursor.fetchall()]
-                    if max_id[0] == None:
+                    if max_id[0] is None:
                         max_id[0] = 0
                     sqls.append(style.SQL_KEYWORD("ALTER TABLE") + " " +
                                 style.SQL_TABLE("%s" % self.quote_name(table)) +
@@ -420,7 +441,8 @@ class DatabaseOperations (BaseDatabaseOperations):
 
             for field in model._meta.many_to_many:
                 m2m_table = field.m2m_db_table()
-                if field.remote_field is not None and hasattr(field.remote_field, 'through'):
+                if field.remote_field is not None and hasattr(
+                        field.remote_field, 'through'):
                     flag = field.remote_field.through
                 else:
                     flag = False
@@ -429,14 +451,16 @@ class DatabaseOperations (BaseDatabaseOperations):
                         self.quote_name('ID'), self.quote_name(table))
                     cursor.execute(max_sql)
                     max_id = [row[0] for row in cursor.fetchall()]
-                    if max_id[0] == None:
+                    if max_id[0] is None:
                         max_id[0] = 0
                     sqls.append(style.SQL_KEYWORD("ALTER TABLE") + " " +
-                                style.SQL_TABLE("%s" % self.quote_name(m2m_table)) +
+                                style.SQL_TABLE(
+                                    "%s" % self.quote_name(m2m_table)) +
                                 " " +
                                 style.SQL_KEYWORD("ALTER COLUMN") + " %s "
                                 % self.quote_name('ID') +
-                                style.SQL_KEYWORD("RESTART WITH %s" % (max_id[0] + 1)))
+                                style.SQL_KEYWORD("RESTART WITH %s" %
+                                                  (max_id[0] + 1)))
         if cursor:
             cursor.close()
 
@@ -447,16 +471,19 @@ class DatabaseOperations (BaseDatabaseOperations):
         sqls = []
         for seq in sequences:
             sqls.append(style.SQL_KEYWORD("ALTER TABLE") + " " +
-                        style.SQL_TABLE("%s" % self.quote_name(seq.get('table'))) +
-                        " " + style.SQL_KEYWORD("ALTER COLUMN") + " %s " % self.quote_name(seq.get('column')) +
+                        style.SQL_TABLE("%s" % self.quote_name(
+                            seq.get('table'))) +
+                        " " + style.SQL_KEYWORD("ALTER COLUMN") + " %s " %
+                        self.quote_name(seq.get('column')) +
                         style.SQL_KEYWORD("RESTART WITH %s" % (1)))
         return sqls
 
     def tablespace_sql(self, tablespace, inline=False):
-        # inline is used for column indexes defined in-line with column definition, like:
-        #   CREATE TABLE "TABLE1" ("ID_OTHER" VARCHAR(20) NOT NULL UNIQUE) IN "TABLESPACE1";
-        # couldn't find support for this in create table
-        #   (http://publib.boulder.ibm.com/infocenter/db2luw/v9/topic/com.ibm.db2.udb.admin.doc/doc/r0000927.htm)
+        # inline is used for column indexes defined in-line with column
+        # definition, like: CREATE TABLE "TABLE1" ("ID_OTHER" VARCHAR(20) NOT
+        # NULL UNIQUE) IN "TABLESPACE1"; couldn't find support for this in
+        # create table (http://publib.boulder.ibm.com/infocenter/db2luw/v9
+        # /topic/com.ibm.db2.udb.admin.doc/doc/r0000927.htm)
         if inline:
             sql = ""
         else:

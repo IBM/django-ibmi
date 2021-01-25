@@ -20,7 +20,6 @@
 DB2 database backend for Django.
 Requires: pyodbc
 """
-import sys
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -41,7 +40,6 @@ try:
 except ImportError:
     from django.db.backends.base.validation import BaseDatabaseValidation
 
-from django.db.backends.signals import connection_created
 
 # Importing internal classes from django_ibmi package.
 from .client import DatabaseClient
@@ -124,7 +122,7 @@ class DatabaseValidation(BaseDatabaseValidation):
 class DatabaseWrapper(BaseDatabaseWrapper):
 
     """
-    This is the base class for DB2 backend support for Django. The under lying 
+    This is the base class for DB2 backend support for Django. The under lying
     wrapper is pyodbc.
     """
     data_types = {}
@@ -209,32 +207,32 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         if (settings_dict.keys()).__contains__('PCONNECT'):
             kwargs['PCONNECT'] = settings_dict['PCONNECT']
 
-        if('CURRENTSCHEMA' in settings_dict):
+        if 'CURRENTSCHEMA' in settings_dict:
             database_schema = settings_dict['CURRENTSCHEMA']
             if isinstance(database_schema, str):
                 kwargs['currentschema'] = database_schema
 
-        if('SECURITY' in settings_dict):
+        if 'SECURITY' in settings_dict:
             database_security = settings_dict['SECURITY']
             if isinstance(database_security, str):
                 kwargs['security'] = database_security
 
-        if('SSLCLIENTKEYDB' in settings_dict):
+        if 'SSLCLIENTKEYDB' in settings_dict:
             database_sslclientkeydb = settings_dict['SSLCLIENTKEYDB']
             if isinstance(database_sslclientkeydb, str):
                 kwargs['sslclientkeydb'] = database_sslclientkeydb
 
-        if('SSLCLIENTKEYSTOREDBPASSWORD' in settings_dict):
+        if 'SSLCLIENTKEYSTOREDBPASSWORD' in settings_dict:
             database_sslclientkeystoredbpassword = settings_dict['SSLCLIENTKEYSTOREDBPASSWORD']
             if isinstance(database_sslclientkeystoredbpassword, str):
                 kwargs['sslclientkeystoredbpassword'] = database_sslclientkeystoredbpassword
 
-        if('SSLCLIENTKEYSTASH' in settings_dict):
+        if 'SSLCLIENTKEYSTASH' in settings_dict:
             database_sslclientkeystash = settings_dict['SSLCLIENTKEYSTASH']
             if isinstance(database_sslclientkeystash, str):
                 kwargs['sslclientkeystash'] = database_sslclientkeystash
 
-        if('SSLSERVERCERTIFICATE' in settings_dict):
+        if 'SSLSERVERCERTIFICATE' in settings_dict:
             database_sslservercertificate = settings_dict['SSLSERVERCERTIFICATE']
             if isinstance(database_sslservercertificate, str):
                 kwargs['sslservercertificate'] = database_sslservercertificate
@@ -257,33 +255,32 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         else:
             kwargs['dsn'] = kwargs.get('database')
 
-        if (kwargsKeys.__contains__('currentschema')):
+        if kwargsKeys.__contains__('currentschema'):
             kwargs['dsn'] += "CurrentSchema=%s;" % (
                 kwargs.get('currentschema'))
-            currentschema = kwargs.get('currentschema')
             SchemaFlag = True
             del kwargs['currentschema']
 
-        if (kwargsKeys.__contains__('security')):
+        if kwargsKeys.__contains__('security'):
             kwargs['dsn'] += "security=%s;" % (kwargs.get('security'))
             del kwargs['security']
 
-        if (kwargsKeys.__contains__('sslclientkeystoredb')):
+        if kwargsKeys.__contains__('sslclientkeystoredb'):
             kwargs['dsn'] += "SSLCLIENTKEYSTOREDB=%s;" % (
                 kwargs.get('sslclientkeystoredb'))
             del kwargs['sslclientkeystoredb']
 
-        if (kwargsKeys.__contains__('sslclientkeystoredbpassword')):
+        if kwargsKeys.__contains__('sslclientkeystoredbpassword'):
             kwargs['dsn'] += "SSLCLIENTKEYSTOREDBPASSWORD=%s;" % (
                 kwargs.get('sslclientkeystoredbpassword'))
             del kwargs['sslclientkeystoredbpassword']
 
-        if (kwargsKeys.__contains__('sslclientkeystash')):
+        if kwargsKeys.__contains__('sslclientkeystash'):
             kwargs['dsn'] += "SSLCLIENTKEYSTASH=%s;" % (
                 kwargs.get('sslclientkeystash'))
             del kwargs['sslclientkeystash']
 
-        if (kwargsKeys.__contains__('sslservercertificate')):
+        if kwargsKeys.__contains__('sslservercertificate'):
             kwargs['dsn'] += "SSLSERVERCERTIFICATE=%s;" % (
                 kwargs.get('sslservercertificate'))
             del kwargs['sslservercertificate']
@@ -294,9 +291,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         if kwargsKeys.__contains__('port'):
             del kwargs['port']
 
-        pconnect_flag = False
         if kwargsKeys.__contains__('PCONNECT'):
-            pconnect_flag = kwargs['PCONNECT']
             del kwargs['PCONNECT']
 
         connection = pyodbc.connect(**kwargs)
@@ -304,7 +299,8 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
         if SchemaFlag:
             # TODO implement set_current_schema
-            schema = connection.set_current_schema(currentschema)
+            # schema = connection.set_current_schema(currentschema)
+            pass
         self.features.has_bulk_insert = True
         return connection
 
@@ -353,7 +349,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
     def next(self):
         row = self.fetchone()
-        if row == None:
+        if row is None:
             raise StopIteration
         return row
 
@@ -378,15 +374,13 @@ class DB2CursorWrapper(pyodbc.Cursor):
                 parameters[index] = param
         return tuple(parameters)
 
-    # Over-riding this method to modify SQLs which contains format parameter to qmark.
+    # Over-riding this method to modify SQLs which contains format parameter
+    # to qmark.
     def execute(self, operation, parameters=()):
         operation = str(operation)
         try:
-            if operation.find('ALTER TABLE') == 0 and getattr(self.connection,
-                                                              dbms_name) != 'DB2':
-                doReorg = 1
-            else:
-                doReorg = 0
+
+            doReorg = 1 if operation.find('ALTER TABLE') == 0 and getattr(self.connection, dbms_name) != 'DB2' else 0
             if operation.count("db2regexExtraField(%s)") > 0:
                 operation = operation.replace("db2regexExtraField(%s)", "")
                 operation = operation % parameters
@@ -396,9 +390,8 @@ class DB2CursorWrapper(pyodbc.Cursor):
             parameters = self._format_parameters(parameters)
 
             try:
-                if (doReorg == 1):
-                    super(DB2CursorWrapper, self).execute(operation,
-                                                          parameters)
+                if doReorg == 1:
+                    super(DB2CursorWrapper, self).execute(operation, parameters)
                     return self._reorg_tables()
                 else:
                     return super(DB2CursorWrapper, self).execute(operation,
@@ -411,6 +404,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
             except DatabaseError as e:
                 raise utils.DatabaseError(*e.args) from e
+
         except TypeError:
             return None
 

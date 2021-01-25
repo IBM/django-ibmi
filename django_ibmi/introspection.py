@@ -16,14 +16,10 @@
 # | Authors: Ambrish Bhargava, Tarun Pasrija, Rahul Priyadarshi              |
 # +--------------------------------------------------------------------------+
 from collections import namedtuple
-import sys
-
-import pyodbc
-
 try:
-    from django.db.backends import BaseDatabaseIntrospection, FieldInfo
+    from django.db.backends import BaseDatabaseIntrospection
 except ImportError:
-    from django.db.backends.base.introspection import BaseDatabaseIntrospection, FieldInfo
+    from django.db.backends.base.introspection import BaseDatabaseIntrospection
 
 
 # TODO fix pyodbc access in Introspection when doing rest of module
@@ -94,7 +90,7 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             if index['INDEX_NAME'] in multifield_indexSet:
                 continue
 
-            if (index['NON_UNIQUE']):
+            if index['NON_UNIQUE']:
                 temp['unique'] = False
             else:
                 temp['unique'] = True
@@ -110,14 +106,13 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
     def get_table_description(self, cursor, table_name):
         qn = self.connection.ops.quote_name
         description = []
-        table_type = 'T'
         dbms_name = 'dbms_name'
         schema = cursor.connection.get_current_schema()
 
-        if (getattr(cursor.connection, dbms_name) == 'AS'):
+        if getattr(cursor.connection, dbms_name) == 'AS':
             sql = "SELECT TYPE FROM QSYS2.SYSTABLES WHERE TABLE_SCHEMA='%(schema)s' AND TABLE_NAME='%(table)s'" % {
                 'schema': schema.upper(), 'table': table_name.upper()}
-        elif (getattr(cursor.connection, dbms_name) != 'DB2'):
+        elif getattr(cursor.connection, dbms_name) != 'DB2':
             sql = "SELECT TYPE FROM SYSCAT.TABLES WHERE TABSCHEMA='%(schema)s' AND TABNAME='%(table)s'" % {
                 'schema': schema.upper(), 'table': table_name.upper()}
         else:
@@ -138,10 +133,10 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         schema = cursor.connection.get_current_schema()
         dbms_name = 'dbms_name'
 
-        if (getattr(cursor.connection, dbms_name) == 'AS'):
-            sql = "SELECT CONSTRAINT_NAME, COLUMN_NAME FROM QSYS2.SYSCSTCOL WHERE TABLE_SCHEMA='%(schema)s' AND TABLE_NAME='%(table)s'" % {
-                'schema': schema.upper(), 'table': table_name.upper()}
-        elif (getattr(cursor.connection, dbms_name) != 'DB2'):
+        if getattr(cursor.connection, dbms_name) == 'AS':
+            sql = "SELECT CONSTRAINT_NAME, COLUMN_NAME FROM QSYS2.SYSCSTCOL WHERE TABLE_SCHEMA='%(schema)s' AND " \
+                  "TABLE_NAME='%(table)s'" % {'schema': schema.upper(), 'table': table_name.upper()}
+        elif getattr(cursor.connection, dbms_name) != 'DB2':
             sql = "SELECT CONSTNAME, COLNAME FROM SYSCAT.COLCHECKS WHERE TABSCHEMA='%(schema)s' AND TABNAME='%(table)s'" % {
                 'schema': schema.upper(), 'table': table_name.upper()}
         else:
@@ -161,14 +156,18 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             constraints[constname]['columns'].append(colname.lower())
 
         if getattr(cursor.connection, dbms_name) == 'AS':
-            sql = "SELECT KEYCOL.CONSTRAINT_NAME, KEYCOL.COLUMN_NAME FROM QSYS2.SYSKEYCST KEYCOL INNER JOIN QSYS2.SYSCST TABCONST ON KEYCOL.CONSTRAINT_NAME=TABCONST.CONSTRAINT_NAME WHERE TABCONST.TABLE_SCHEMA='%(schema)s' and TABCONST.TABLE_NAME='%(table)s' and TABCONST.TYPE='U'" % {
-                'schema': schema.upper(), 'table': table_name.upper()}
-        elif (getattr(cursor.connection, dbms_name) != 'DB2'):
-            sql = "SELECT KEYCOL.CONSTNAME, KEYCOL.COLNAME FROM SYSCAT.KEYCOLUSE KEYCOL INNER JOIN SYSCAT.TABCONST TABCONST ON KEYCOL.CONSTNAME=TABCONST.CONSTNAME WHERE TABCONST.TABSCHEMA='%(schema)s' and TABCONST.TABNAME='%(table)s' and TABCONST.TYPE='U'" % {
-                'schema': schema.upper(), 'table': table_name.upper()}
+            sql = "SELECT KEYCOL.CONSTRAINT_NAME, KEYCOL.COLUMN_NAME FROM QSYS2.SYSKEYCST KEYCOL INNER JOIN " \
+                  "QSYS2.SYSCST TABCONST ON KEYCOL.CONSTRAINT_NAME=TABCONST.CONSTRAINT_NAME WHERE TABCONST.TABLE_SCHEMA=" \
+                  "'%(schema)s' and TABCONST.TABLE_NAME='%(table)s' " \
+                  "and TABCONST.TYPE='U'" % {'schema': schema.upper(), 'table': table_name.upper()}
+        elif getattr(cursor.connection, dbms_name) != 'DB2':
+            sql = "SELECT KEYCOL.CONSTNAME, KEYCOL.COLNAME FROM SYSCAT.KEYCOLUSE KEYCOL INNER JOIN SYSCAT.TABCONST TABCONST " \
+                  "ON KEYCOL.CONSTNAME=TABCONST.CONSTNAME WHERE TABCONST.TABSCHEMA='%(schema)s' and TABCONST.TABNAME=" \
+                  "'%(table)s' and TABCONST.TYPE='U'" % {'schema': schema.upper(), 'table': table_name.upper()}
         else:
-            sql = "SELECT KEYCOL.CONSTNAME, KEYCOL.COLNAME FROM SYSIBM.SYSKEYCOLUSE KEYCOL INNER JOIN SYSIBM.SYSTABCONST TABCONST ON KEYCOL.CONSTNAME=TABCONST.CONSTNAME WHERE TABCONST.TBCREATOR='%(schema)s' AND TABCONST.TBNAME='%(table)s' AND TABCONST.TYPE='U'" % {
-                'schema': schema.upper(), 'table': table_name.upper()}
+            sql = "SELECT KEYCOL.CONSTNAME, KEYCOL.COLNAME FROM SYSIBM.SYSKEYCOLUSE KEYCOL INNER JOIN SYSIBM.SYSTABCONST " \
+                  "TABCONST ON KEYCOL.CONSTNAME=TABCONST.CONSTNAME WHERE TABCONST.TBCREATOR='%(schema)s' AND TABCONST.TBNAME" \
+                  "='%(table)s' AND TABCONST.TYPE='U'" % {'schema': schema.upper(), 'table': table_name.upper()}
         cursor.execute(sql)
         for constname, colname in cursor.fetchall():
             if constname not in constraints:
@@ -231,12 +230,11 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         return constraints
 
     def get_sequences(self, cursor, table_name, table_fields=()):
-        from django.apps import apps
         from django.db import models
 
         seq_list = []
         for f in table_fields:
-            if(isinstance(f, models.AutoField)):
+            if isinstance(f, models.AutoField):
                 seq_list.append({'table': table_name, 'column': f.column})
                 break
         return seq_list

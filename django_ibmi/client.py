@@ -24,9 +24,6 @@ try:
     from django.db.backends import BaseDatabaseClient
 except ImportError:
     from django.db.backends.base.client import BaseDatabaseClient
-
-import types
-
 import os
 
 

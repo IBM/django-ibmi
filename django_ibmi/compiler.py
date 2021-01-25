@@ -17,7 +17,6 @@
 # +--------------------------------------------------------------------------+
 
 from django.db.models.sql import compiler
-import sys
 from itertools import zip_longest
 
 
@@ -30,7 +29,8 @@ class SQLCompiler(compiler.SQLCompiler):
         self.__do_filter(self.query.where.children)
         self.pre_sql_setup()
         if self.query.distinct:
-            if ((self.connection.settings_dict.keys()).__contains__('FETCH_DISTINCT_ON_TEXT')) and not self.connection.settings_dict['FETCH_DISTINCT_ON_TEXT']:
+            if ((self.connection.settings_dict.keys()).__contains__('FETCH_DISTINCT_ON_TEXT')) \
+                    and not self.connection.settings_dict['FETCH_DISTINCT_ON_TEXT']:
                 out_cols = self.get_columns(False)
                 for col in out_cols:
                     col = col.split(".")[1].replace('"', '').lower()
@@ -44,31 +44,28 @@ class SQLCompiler(compiler.SQLCompiler):
         else:
             if self.query.high_mark == self.query.low_mark:
                 return '', ()
-
             sql_ori, params = super(SQLCompiler, self).as_sql(
                 False, with_col_aliases)
             if self.query.low_mark == 0:
-                return sql_ori + " FETCH FIRST %s ROWS ONLY" % (self.query.high_mark), params
+                return sql_ori + " FETCH FIRST %s ROWS ONLY" % self.query.high_mark, params
             sql_split = sql_ori.split(" FROM ")
-
             sql_sec = ""
             if len(sql_split) > 2:
                 for i in range(1, len(sql_split)):
                     sql_sec = " %s FROM %s " % (sql_sec, sql_split[i])
             else:
                 sql_sec = " FROM %s " % (sql_split[1])
-
             dummyVal = "Z.__db2_"
             sql_pri = ""
-
             sql_sel = "SELECT"
             if self.query.distinct:
                 sql_sel = "SELECT DISTINCT"
 
             sql_select_token = sql_split[0].split(",")
             i = 0
-            while (i < len(sql_select_token)):
-                if sql_select_token[i].count("TIMESTAMP(DATE(SUBSTR(CHAR(") == 1:
+            while i < len(sql_select_token):
+                if sql_select_token[i].count(
+                        "TIMESTAMP(DATE(SUBSTR(CHAR(") == 1:
                     sql_sel = "%s \"%s%d\"," % (sql_sel, dummyVal, i + 1)
                     sql_pri = '%s %s,%s,%s,%s AS "%s%d",' % (
                         sql_pri,
@@ -104,7 +101,7 @@ class SQLCompiler(compiler.SQLCompiler):
                     sql, self.__rownum, self.query.low_mark)
 
             if self.query.low_mark != 0 and self.query.high_mark is not None:
-                sql = '%s AND ' % (sql)
+                sql = '%s AND ' % sql
 
             if self.query.high_mark is not None:
                 sql = '%s "%s" <= %d' % (
@@ -117,7 +114,7 @@ class SQLCompiler(compiler.SQLCompiler):
         values = []
         index_extra_select = len(self.query.extra_select.keys())
         for value, field in zip_longest(row[index_extra_select:], fields):
-            if (field and field.get_internal_type() in ("BooleanField", "NullBooleanField") and value in (0, 1)):
+            if field and field.get_internal_type() in ("BooleanField", "NullBooleanField") and value in (0, 1):
                 value = bool(value)
             values.append(value)
         return row[:index_extra_select] + tuple(values)
@@ -135,7 +132,7 @@ class SQLCompiler(compiler.SQLCompiler):
                         node[1].find("icontains") != -1 or \
                         node[1].find("istartswith") != -1 or \
                         node[1].find("iendswith") != -1:
-                    if node[2] == True:
+                    if node[2]:
                         node[3] = node[3].upper()
                         children[index] = tuple(node)
 
