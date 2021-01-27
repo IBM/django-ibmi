@@ -19,6 +19,10 @@
 """
 This module implements command line interface for DB2 through Django.
 """
+from distutils import util
+
+import pyodbc
+from django.core.exceptions import ImproperlyConfigured
 
 try:
     from django.db.backends import BaseDatabaseClient
@@ -32,27 +36,76 @@ class DatabaseClient(BaseDatabaseClient):
     # Over-riding base method to provide shell support for DB2 through Django.
     def runshell(self):
         settings_dict = self.connection.settings_dict
-        database_name = settings_dict['NAME']
-        database_user = settings_dict['USER']
-        database_password = settings_dict['PASSWORD']
+        if 'NAME' not in settings_dict:
+            raise ImproperlyConfigured(
+                "settings.DATABASES is improperly configured. "
+                "Please supply the NAME value.")
 
-        cmdArgs = ["db2"]
+        conn_params = {
+            'system': settings_dict['NAME']
+        }
+        if 'USER' in settings_dict:
+            conn_params['user'] = settings_dict['USER']
 
-        if (os.name == 'nt'):
-            cmdArgs += ["db2 connect to %s" % database_name]
+        if 'PASSWORD' in settings_dict:
+            conn_params['password'] = settings_dict['PASSWORD']
+
+        if 'OPTIONS' in settings_dict:
+            conn_params.update(settings_dict['OPTIONS'])
+
+        allowed_opts = {'system', 'user', 'password', 'autocommit', 'readonly','timeout', 'database', 'use_system_naming',
+                        'library_list', 'current_schema'
+                        }
+
+        if not allowed_opts.issuperset(conn_params.keys()):
+            raise ValueError("Option entered not valid for "
+                             "IBM i Access ODBC Driver")
+
+        try:
+            conn_params['Naming'] = \
+                str(util.strtobool(conn_params['use_system_naming']))
+        except (ValueError, KeyError):
+            conn_params['Naming'] = '0'
+
+        if 'current_schema' in conn_params or 'library_list' in conn_params:
+            conn_params['DefaultLibraries'] = \
+                conn_params.pop('current_schema', '') + ','
+            if isinstance(conn_params["DefaultLibraries"], str):
+                conn_params['DefaultLibraries'] += \
+                    conn_params.pop('library_list', '')
+            else:
+                conn_params['DefaultLibraries'] += ','.join(
+                    conn_params.pop('library_list', ''))
+
+        if os.name == 'nt':
+            cnxn = pyodbc.connect("Driver=IBM i Access ODBC Driver; UNICODESQL=1; TRUEAUTOCOMMIT=1;", **conn_params)
+            cursor = cnxn.cursor()
+            while True:
+                try:
+                    query = input("SQL> ")
+                    if query == "exit":
+                        break
+                    cursor.execute(query)
+                    try:
+                        print(cursor.fetchall())
+                    except pyodbc.ProgrammingError:
+                        pass
+                except ConnectionError as e:
+                    cursor.close()
+                    cnxn.close()
+                    print(e)
+                    break
+                except KeyboardInterrupt:
+                    cursor.close()
+                    cnxn.close()
+                    break
+            cursor.close()
+            cnxn.close()
+
         else:
-            cmdArgs += ["connect to %s" % database_name]
-
-        if (isinstance(database_user, str) and
-                (database_user != '')):
-            cmdArgs += ["user %s" % database_user]
-
-            if (isinstance(database_password, str) and
-                    (database_password != '')):
-                cmdArgs += ["using %s" % database_password]
-
-        # db2cmd is the shell which is required to run db2 commands on windows.
-        if (os.name == 'nt'):
-            os.execvp('db2cmd', cmdArgs)
-        else:
-            os.execvp('db2', cmdArgs)
+            args = ['%s -v %s %s %s' %
+                    ('isql', settings_dict['NAME'], settings_dict['USER'], settings_dict['PASSWORD'])]
+            try:
+                os.subprocess.call(args, shell=True)
+            except KeyboardInterrupt:
+                pass
