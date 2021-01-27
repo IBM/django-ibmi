@@ -24,10 +24,7 @@ except ImportError:
 
 from . import query
 import datetime
-try:
-    import pytz
-except ImportError:
-    pytz = None
+import pytz
 
 from django.db import utils
 
@@ -133,24 +130,20 @@ class DatabaseOperations (BaseDatabaseOperations):
             return " %s(%s) " % (lookup_type.upper(), field_name)
 
     def _get_utcoffset(self, tzname):
-        if pytz is None and tzname is not None:
-            # TODO handle pytz
-            raise RuntimeError
-        else:
-            hr = 0
-            min = 0
-            tz = pytz.timezone(tzname)
-            td = tz.utcoffset(datetime.datetime(2012, 1, 1))
-            if td.days is -1:
-                min = (td.seconds % (60 * 60)) / 60 - 60
-                if min:
-                    hr = td.seconds / (60 * 60) - 23
-                else:
-                    hr = td.seconds / (60 * 60) - 24
+        hr = 0
+        min = 0
+        tz = pytz.timezone(tzname)
+        td = tz.utcoffset(datetime.datetime(2012, 1, 1))
+        if td.days is -1:
+            min = (td.seconds % (60 * 60)) / 60 - 60
+            if min:
+                hr = td.seconds / (60 * 60) - 23
             else:
-                hr = td.seconds / (60 * 60)
-                min = (td.seconds % (60 * 60)) / 60
-            return hr, min
+                hr = td.seconds / (60 * 60) - 24
+        else:
+            hr = td.seconds / (60 * 60)
+            min = (td.seconds % (60 * 60)) / 60
+        return hr, min
 
     # Function to extract time zone-aware day, month or day of week from
     # timestamps
