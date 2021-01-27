@@ -20,6 +20,7 @@
 DB2 database backend for Django.
 Requires: pyodbc
 """
+from distutils import util
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -170,139 +171,53 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
     # To get dict of connection parameters
     def get_connection_params(self):
-        kwargs = {}
-
         settings_dict = self.settings_dict
-        database_name = settings_dict['NAME']
-        database_user = settings_dict['USER']
-        database_pass = settings_dict['PASSWORD']
-        database_host = settings_dict['HOST']
-        database_port = settings_dict['PORT']
-        database_options = settings_dict['OPTIONS']
-
-        if database_name != '' and isinstance(database_name, str):
-            kwargs['database'] = database_name
-        else:
+        if 'NAME' not in settings_dict:
             raise ImproperlyConfigured(
-                "Please specify the valid database Name to connect to")
+                "settings.DATABASES is improperly configured. "
+                "Please supply the NAME value.")
+        conn_params = {
+            'system': settings_dict['NAME']
+        }
+        if 'USER' in settings_dict:
+            conn_params['user'] = settings_dict['USER']
+        if 'PASSWORD' in settings_dict:
+            conn_params['password'] = settings_dict['PASSWORD']
 
-        if isinstance(database_user, str):
-            kwargs['user'] = database_user
+        if 'OPTIONS' in settings_dict:
+            conn_params.update(settings_dict['OPTIONS'])
 
-        if isinstance(database_pass, str):
-            kwargs['password'] = database_pass
+        allowed_opts = {'system', 'user', 'password', 'autocommit',
+                        'readonly',
+                        'timeout', 'database', 'use_system_naming',
+                        'library_list', 'current_schema'
+                        }
 
-        if isinstance(database_host, str):
-            kwargs['host'] = database_host
+        if not allowed_opts.issuperset(conn_params.keys()):
+            raise ValueError("Option entered not valid for "
+                             "IBM i Access ODBC Driver")
 
-        if isinstance(database_port, str):
-            kwargs['port'] = database_port
+        try:
+            conn_params['Naming'] = \
+                str(util.strtobool(conn_params['use_system_naming']))
+        except (ValueError, KeyError):
+            conn_params['Naming'] = '0'
 
-        if isinstance(database_host, str):
-            kwargs['host'] = database_host
+        if 'current_schema' in conn_params or 'library_list' in conn_params:
+            conn_params['DefaultLibraries'] = \
+                conn_params.pop('current_schema', '') + ','
+            if isinstance(conn_params["DefaultLibraries"], str):
+                conn_params['DefaultLibraries'] += \
+                    conn_params.pop('library_list', '')
+            else:
+                conn_params['DefaultLibraries'] += ','.join(
+                    conn_params.pop('library_list', ''))
 
-        if isinstance(database_options, dict):
-            kwargs['options'] = database_options
-
-        if (settings_dict.keys()).__contains__('PCONNECT'):
-            kwargs['PCONNECT'] = settings_dict['PCONNECT']
-
-        if 'CURRENTSCHEMA' in settings_dict:
-            database_schema = settings_dict['CURRENTSCHEMA']
-            if isinstance(database_schema, str):
-                kwargs['currentschema'] = database_schema
-
-        if 'SECURITY' in settings_dict:
-            database_security = settings_dict['SECURITY']
-            if isinstance(database_security, str):
-                kwargs['security'] = database_security
-
-        if 'SSLCLIENTKEYDB' in settings_dict:
-            database_sslclientkeydb = settings_dict['SSLCLIENTKEYDB']
-            if isinstance(database_sslclientkeydb, str):
-                kwargs['sslclientkeydb'] = database_sslclientkeydb
-
-        if 'SSLCLIENTKEYSTOREDBPASSWORD' in settings_dict:
-            database_sslclientkeystoredbpassword = settings_dict['SSLCLIENTKEYSTOREDBPASSWORD']
-            if isinstance(database_sslclientkeystoredbpassword, str):
-                kwargs['sslclientkeystoredbpassword'] = database_sslclientkeystoredbpassword
-
-        if 'SSLCLIENTKEYSTASH' in settings_dict:
-            database_sslclientkeystash = settings_dict['SSLCLIENTKEYSTASH']
-            if isinstance(database_sslclientkeystash, str):
-                kwargs['sslclientkeystash'] = database_sslclientkeystash
-
-        if 'SSLSERVERCERTIFICATE' in settings_dict:
-            database_sslservercertificate = settings_dict['SSLSERVERCERTIFICATE']
-            if isinstance(database_sslservercertificate, str):
-                kwargs['sslservercertificate'] = database_sslservercertificate
-
-        return kwargs
+        return conn_params
 
     # To get new connection from Database
     def get_new_connection(self, conn_params):
-        SchemaFlag = False
-        kwargs = conn_params
-        kwargsKeys = kwargs.keys()
-        if (kwargsKeys.__contains__('port') and
-                kwargsKeys.__contains__('host')):
-            kwargs[
-                'dsn'] = "DATABASE=%s;HOSTNAME=%s;PORT=%s;PROTOCOL=TCPIP;" % (
-                kwargs.get('database'),
-                kwargs.get('host'),
-                kwargs.get('port')
-            )
-        else:
-            kwargs['dsn'] = kwargs.get('database')
-
-        if kwargsKeys.__contains__('currentschema'):
-            kwargs['dsn'] += "CurrentSchema=%s;" % (
-                kwargs.get('currentschema'))
-            SchemaFlag = True
-            del kwargs['currentschema']
-
-        if kwargsKeys.__contains__('security'):
-            kwargs['dsn'] += "security=%s;" % (kwargs.get('security'))
-            del kwargs['security']
-
-        if kwargsKeys.__contains__('sslclientkeystoredb'):
-            kwargs['dsn'] += "SSLCLIENTKEYSTOREDB=%s;" % (
-                kwargs.get('sslclientkeystoredb'))
-            del kwargs['sslclientkeystoredb']
-
-        if kwargsKeys.__contains__('sslclientkeystoredbpassword'):
-            kwargs['dsn'] += "SSLCLIENTKEYSTOREDBPASSWORD=%s;" % (
-                kwargs.get('sslclientkeystoredbpassword'))
-            del kwargs['sslclientkeystoredbpassword']
-
-        if kwargsKeys.__contains__('sslclientkeystash'):
-            kwargs['dsn'] += "SSLCLIENTKEYSTASH=%s;" % (
-                kwargs.get('sslclientkeystash'))
-            del kwargs['sslclientkeystash']
-
-        if kwargsKeys.__contains__('sslservercertificate'):
-            kwargs['dsn'] += "SSLSERVERCERTIFICATE=%s;" % (
-                kwargs.get('sslservercertificate'))
-            del kwargs['sslservercertificate']
-
-        if kwargsKeys.__contains__('options'):
-            kwargs.update(kwargs.get('options'))
-            del kwargs['options']
-        if kwargsKeys.__contains__('port'):
-            del kwargs['port']
-
-        if kwargsKeys.__contains__('PCONNECT'):
-            del kwargs['PCONNECT']
-
-        connection = pyodbc.connect(**kwargs)
-        connection.autocommit = connection.set_autocommit
-
-        if SchemaFlag:
-            # TODO implement set_current_schema
-            # schema = connection.set_current_schema(currentschema)
-            pass
-        self.features.has_bulk_insert = True
-        return connection
+        return pyodbc.connect("Driver=IBM i Access ODBC Driver; UNICODESQL=1; TRUEAUTOCOMMIT=1;", **conn_params)
 
     def create_cursor(self, name=None):
         return DB2CursorWrapper(self.connection)
@@ -311,15 +226,21 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         pass
 
     def is_usable(self):
-        # TODO implement is_usable method correctly
+        try:
+            # If connection is closed and unusable, a Programming error will result
+            self.connection.cursor()
+        except pyodbc.ProgrammingError:
+            return False
         return True
 
     def _set_autocommit(self, autocommit):
-        self.connection.autocommit = autocommit
+        with self.wrap_database_errors:
+            self.connection.autocommit = autocommit
 
     def close(self):
         self.validate_thread_sharing()
         if self.connection is not None:
+            self.validate_thread_sharing()
             self.connection.close()
             self.connection = None
 
