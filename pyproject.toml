@@ -25,6 +25,7 @@ packages = [
 python = ">=3.5"
 Django = ">=2.2"
 pyodbc = ">=4.0"
+pytz = "*"
 
 [tool.poetry.plugins."django.db.backends"]
 django_ibmi = "django_ibmi"
