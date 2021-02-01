@@ -23,7 +23,6 @@ Requires: pyodbc
 
 from django.core.exceptions import ImproperlyConfigured
 
-# Importing class from base module of django.db.backends
 try:
     from django.db.backends import BaseDatabaseWrapper
 except ImportError:
