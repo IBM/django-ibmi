@@ -305,7 +305,8 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         return connection
 
     def create_cursor(self, name=None):
-        return DB2CursorWrapper(self.connection)
+        cursor = self.connection.cursor()
+        return DB2CursorWrapper(cursor, self.connection)
 
     def init_connection_state(self):
         pass
@@ -333,27 +334,28 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         return DB2SchemaEditor(self, *args, **kwargs)
 
 
-class DB2CursorWrapper(pyodbc.Cursor):
+class DB2CursorWrapper:
     """
     This is the wrapper around pyodbc in order to support format parameter style
     pyodbc supports qmark, where as Django support format style,
     hence this conversion is required.
     """
 
-    def __init__(self, connection):
-        super().__init__(connection.conn_handler, connection)
+    def __init__(self, cursor, conn):
+        self.cursor = cursor
+        self.conn = conn
+
+    def __getattr__(self, attr):
+        return getattr(self.cursor, attr)
 
     def __iter__(self):
-        return self
+        return iter(self.cursor)
 
     def next(self):
-        row = self.fetchone()
+        row = self.cursor.fetchone()
         if row is None:
             raise StopIteration
         return row
-
-    def _create_instance(self, connection):
-        return DB2CursorWrapper(connection)
 
     def _format_parameters(self, parameters):
         parameters = list(parameters)
@@ -389,7 +391,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
             parameters = self._format_parameters(parameters)
 
             try:
-                super().execute(operation, parameters)
+                result = self.cursor.execute(operation, parameters)
                 if doReorg == 1:
                     return self._reorg_tables()
             except IntegrityError as e:
@@ -415,7 +417,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
             seq_parameters = [self._format_parameters(parameters) for
                               parameters in seq_parameters]
             try:
-                return super().executemany(operation, seq_parameters)
+                return self.cursor.executemany(operation, seq_parameters)
             except IntegrityError as e:
                 raise utils.IntegrityError(*e.args) from e
 
@@ -431,19 +433,19 @@ class DB2CursorWrapper(pyodbc.Cursor):
         res = []
         reorgSQLs = []
         parameters = ()
-        super().execute(checkReorgSQL, parameters)
-        res = super().fetchall()
+        self.cursor.execute(checkReorgSQL, parameters)
+        res = self.cursor.fetchall()
         if res:
             for sName, tName in res:
                 reorgSQL = '''CALL SYSPROC.ADMIN_CMD('REORG TABLE "%(sName)s"."%(tName)s"')''' % {
                     'sName': sName, 'tName': tName}
                 reorgSQLs.append(reorgSQL)
             for sql in reorgSQLs:
-                super().execute(sql)
+                self.cursor.execute(sql)
 
     # Over-riding this method to modify result set containing datetime and time zone support is active
     def fetchone(self):
-        row = super().fetchone()
+        row = self.cursor.fetchone()
         if row is None:
             return row
         else:
@@ -451,7 +453,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
     # Over-riding this method to modify result set containing datetime and time zone support is active
     def fetchmany(self, size=0):
-        rows = super().fetchmany(size)
+        rows = self.cursor.fetchmany(size)
         if rows is None:
             return rows
         else:
@@ -459,7 +461,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
     # Over-riding this method to modify result set containing datetime and time zone support is active
     def fetchall(self):
-        rows = super().fetchall()
+        rows = self.cursor.fetchall()
         if rows is None:
             return rows
         else:
@@ -469,7 +471,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
     def _fix_return_data(self, row):
         row = list(row)
         index = -1
-        for value, desc in zip(row, self.description):
+        for value, desc in zip(row, self.cursor.description):
             index = index + 1
             if (desc[1] == pyodbc.DATETIME):
                 if settings.USE_TZ and value is not None and timezone.is_naive(
