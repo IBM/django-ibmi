@@ -351,11 +351,8 @@ class DB2CursorWrapper:
     def __iter__(self):
         return iter(self.cursor)
 
-    def next(self):
-        row = self.cursor.fetchone()
-        if row is None:
-            raise StopIteration
-        return row
+    def __next__(self):
+        return next(self.cursor)
 
     def _format_parameters(self, parameters):
         parameters = list(parameters)
