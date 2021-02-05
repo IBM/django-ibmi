@@ -206,12 +206,11 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         if 'current_schema' in conn_params or 'library_list' in conn_params:
             conn_params['DefaultLibraries'] = \
                 conn_params.pop('current_schema', '') + ','
-            if isinstance(conn_params["DefaultLibraries"], str):
-                conn_params['DefaultLibraries'] += \
-                    conn_params.pop('library_list', '')
+            library_list = conn_params.pop('library_list', '')
+            if isinstance(library_list, str):
+                conn_params['DefaultLibraries'] += library_list
             else:
-                conn_params['DefaultLibraries'] += ','.join(
-                    conn_params.pop('library_list', ''))
+                conn_params['DefaultLibraries'] += ','.join(library_list)
 
         return conn_params
 
@@ -238,7 +237,6 @@ class DatabaseWrapper(BaseDatabaseWrapper):
             self.connection.autocommit = autocommit
 
     def close(self):
-        self.validate_thread_sharing()
         if self.connection is not None:
             self.validate_thread_sharing()
             self.connection.close()
