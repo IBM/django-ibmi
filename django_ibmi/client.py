@@ -103,7 +103,7 @@ class DatabaseClient(BaseDatabaseClient):
             cnxn.close()
 
         else:
-            args = ['%s -v %s %s %s' %
+            args = ['%s -v -k "DRIVER=IBM i Access ODBC Driver; UNICODESQL=1; TRUEAUTOCOMMIT=1; SYSTEM=%s; UID=%s; PWD=%s"' %
                     ('isql', settings_dict['NAME'], settings_dict['USER'], settings_dict['PASSWORD'])]
             try:
                 os.subprocess.call(args, shell=True)
