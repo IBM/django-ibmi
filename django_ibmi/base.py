@@ -204,8 +204,6 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         self.client = DatabaseClient(self)
         self.features = DatabaseFeatures(self)
         self.creation = DatabaseCreation(self)
-        self.data_types = self.creation.data_types
-        self.data_type_check_constraints = self.creation.data_type_check_constraints
         self.introspection = DatabaseIntrospection(self)
         self.validation = DatabaseValidation(self)
         self.databaseWrapper = DatabaseWrapper()
