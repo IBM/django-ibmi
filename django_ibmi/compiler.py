@@ -17,11 +17,85 @@
 # +--------------------------------------------------------------------------+
 
 from django.db.models.sql import compiler
-from itertools import zip_longest
+from itertools import zip_longest, chain
 
+from django.db.models.sql.compiler import cursor_iter
+from django.db.models.sql.constants import (
+    CURSOR, GET_ITERATOR_CHUNK_SIZE, MULTI, NO_RESULTS, SINGLE,
+)
+from django.core.exceptions import EmptyResultSet
 
 class SQLCompiler(compiler.SQLCompiler):
-    __rownum = 'Z.__ROWNUM'
+    __rownum = 'IBMi.__ROWNUM'
+
+    def execute_sql(self, result_type=MULTI, chunked_fetch=False, chunk_size=GET_ITERATOR_CHUNK_SIZE):
+        """
+        Run the query against the database and return the result(s). The
+        return value is a single data item if result_type is SINGLE, or an
+        iterator over the results if the result_type is MULTI.
+
+        result_type is either MULTI (use fetchmany() to retrieve all rows),
+        SINGLE (only retrieve a single row), or None. In this last case, the
+        cursor is returned if any query is executed, since it's used by
+        subclasses such as InsertQuery). It's possible, however, that no query
+        is needed, as the filters describe an empty set. In that case, None is
+        returned, to avoid any unnecessary database interaction.
+        """
+        result_type = result_type or NO_RESULTS
+        try:
+            sql, params = self.as_sql()
+            if not sql:
+                raise EmptyResultSet
+        except EmptyResultSet:
+            if result_type == MULTI:
+                return iter([])
+            else:
+                return
+        if chunked_fetch:
+            cursor = self.connection.chunked_cursor()
+        else:
+            cursor = self.connection.cursor()
+        try:
+            cursor.execute(sql, params)
+        except Exception:
+            # Might fail for server-side cursors (e.g. connection closed)
+            cursor.close()
+            raise
+
+        if result_type == CURSOR:
+            # Give the caller the cursor to process and close.
+            return cursor
+        if result_type == SINGLE:
+            try:
+                val = cursor.fetchone()
+                if val:
+                    return val[0:self.col_count]
+                return val
+            finally:
+                # done with the cursor
+                cursor.close()
+        if result_type == NO_RESULTS:
+            cursor.close()
+            return
+
+        result = cursor_iter(
+            cursor, self.connection.features.empty_fetchmany_value,
+            self.col_count if self.has_extra_select else None,
+            chunk_size,
+        )
+        if not chunked_fetch or not self.connection.features.can_use_chunked_reads:
+            try:
+                # If we are using non-chunked reads, we return the same data
+                # structure as normally, but ensure it is all read into memory
+                # before going any further. Use chunked_fetch if requested,
+                # unless the database doesn't support it.
+                return list(result)
+            finally:
+                # Closing this cursor leads to a pyodbc error with using a closed cursor
+                # done with the cursor
+                # cursor.close()
+                pass
+        return result
 
     # To get ride of LIMIT/OFFSET problem in DB2, this method has been implemented.
     def as_sql(self, with_limits=True, with_col_aliases=False, subquery=False):
@@ -54,7 +128,7 @@ class SQLCompiler(compiler.SQLCompiler):
                     sql_sec = " %s FROM %s " % (sql_sec, sql_split[i])
             else:
                 sql_sec = " FROM %s " % (sql_split[1])
-            dummyVal = "Z.__db2_"
+            dummyVal = "IBMi.__db2_"
             sql_pri = ""
             sql_sel = "SELECT"
             if self.query.distinct:
