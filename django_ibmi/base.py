@@ -44,7 +44,7 @@ from .features import DatabaseFeatures
 
 import pyodbc
 
-from .schemaEditor import DB2SchemaEditor
+from .schema import DatabaseSchemaEditor
 
 import datetime
 from django.db import utils
@@ -203,7 +203,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
                      self.connection.server_info()[1].split("."))
 
     def schema_editor(self, *args, **kwargs):
-        return DB2SchemaEditor(self, *args, **kwargs)
+        return DatabaseSchemaEditor(self, *args, **kwargs)
 
 
 class DB2CursorWrapper:

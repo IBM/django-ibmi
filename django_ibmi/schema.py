@@ -18,12 +18,7 @@
 
 import datetime
 import copy
-
-try:
-    from django.db.backends.schema import BaseDatabaseSchemaEditor
-except ImportError:
-    from django.db.backends.base.schema import BaseDatabaseSchemaEditor
-
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db import models
 from django.db.backends.utils import truncate_name
 from django.db.models.fields.related import ManyToManyField
@@ -31,7 +26,7 @@ import pyodbc
 Error = pyodbc.Error
 
 
-class DB2SchemaEditor(BaseDatabaseSchemaEditor):
+class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
     psudo_column_prefix = 'psudo_'
     sql_delete_table = "DROP TABLE %(table)s"
     sql_rename_table = "RENAME TABLE %(old_table)s TO %(new_table)s"
@@ -45,6 +40,18 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
     sql_delete_unique = "ALTER TABLE %(table)s DROP CONSTRAINT %(name)s"
     sql_drop_pk = "ALTER TABLE %(table)s DROP PRIMARY KEY"
     sql_drop_default = "ALTER TABLE %(table)s ALTER COLUMN %(column)s DROP DEFAULT"
+
+    def quote_value(self, value):
+        if isinstance(value, (datetime.date, datetime.time, datetime.datetime)):
+            return "'%s'" % value
+        elif isinstance(value, str):
+            return "'%s'" % value.replace("\'", "\'\'").replace('%', '%%')
+        elif isinstance(value, (bytes, bytearray, memoryview)):
+            return "'%s'" % value.hex()
+        elif isinstance(value, bool):
+            return "1" if value else "0"
+        else:
+            return str(value)
 
     @property
     def sql_create_pk(self):
@@ -379,7 +386,6 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
 
         # Need to change nullability
         if alter_field_nullable:
-            sql = ""
             if new_field.null:
                 sql = self.sql_alter_column_null % {
                     'column': self.quote_name(new_field.column)
@@ -552,7 +558,7 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
                 field.primary_key = True
                 cur = self.connection.cursor()
                 # remove other pk if available
-                for other_pk in cur.connection.primary_keys(True, cur.connection.get_current_schema(), model._meta.db_table):
+                for other_pk in cur.connection.primary_keys(True, self.connection.get_current_schema(), model._meta.db_table):
                     self.execute(
                         self.sql_delete_pk % {
                             'table': self.quote_name(model._meta.db_table),
@@ -600,8 +606,9 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
         else:
             rel_old_field = None
             rel_new_field = None
+            old_field_rel_through = None
 
-        if((rel_old_field is not None) and (rel_new_field is not None)):
+        if (rel_old_field is not None) and (rel_new_field is not None):
             with self.connection.cursor() as cur:
                 constraints = self.connection.introspection.get_constraints(
                     cur, old_field_rel_through._meta.db_table)
@@ -621,7 +628,6 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
 
     def _reorg_tables(self):
         checkReorgSQL = "select TABSCHEMA, TABNAME from SYSIBMADM.ADMINTABINFO where REORG_PENDING = 'Y'"
-        res = []
         reorgSQLs = []
         with self.connection.cursor() as cursor:
             cursor.execute(checkReorgSQL)
