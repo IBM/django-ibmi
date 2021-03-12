@@ -23,10 +23,11 @@ except ImportError:
 
 
 class DatabaseCreation(BaseDatabaseCreation):
-    def _clone_test_db(self, suffix, verbosity, keepdb=False):
-        pass
+    def _clone_test_db(self, suffix, verbosity, keepdb=True):
+        if keepdb:
+            return
+        raise NotImplementedError
 
-    psudo_column_prefix = 'psudo_'
 
     data_types = {
         # DB2 Specific
@@ -79,15 +80,13 @@ class DatabaseCreation(BaseDatabaseCreation):
     # If test database already exists then it takes confirmation from user to recreate that database .
     # If create test database not supported in current scenario then it takes confirmation from user to use settings file's
     # database name as test database
-    # For Jython this method prepare the settings file's database. First it drops the tables from the database,then create
-    # tables on the basis of installed models.
     def create_test_db(self, verbosity=0, autoclobber=False, keepdb=False, serialize=False):
         self.__clean_up(self.connection.cursor())
         self.connection.commit()
         self.connection.close()
         super().create_test_db(verbosity, autoclobber,serialize, keepdb=True)
 
-    # Method to destroy database. For Jython nothing is getting done over here.
+    # Method to destroy database.
     def destroy_test_db(self, old_database_name=None, verbosity=1, keepdb=False, suffix=None):
         super().destroy_test_db(old_database_name, verbosity, True, suffix)
         self.__clean_up(self.connection.cursor())
