@@ -50,19 +50,28 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
     def sql_create_pk(self):
         self._reorg_tables()
         return "ALTER TABLE %(table)s ADD CONSTRAINT %(name)s PRIMARY KEY (%(columns)s)"
+    
+    def quote_value(self, value):
+        if isinstance(value, str):
+            value = value.replace('%', '%%')
+
+        # TODO: Any more quoting need to be done, eg. binary strings?
+
+        return value
+
 
     # return column definition DDL
-    def column_sql(self, model, field, include_default=True):
+    def column_sql2(self, model, field, include_default=True):
         db_parameter = field.db_parameters(connection=self.connection)
         sql = db_parameter['type']
         if sql is None:
             return None, None
         if include_default:
-            if (field.default is not None) and field.has_default():
+            if field.default is not None and field.has_default():
                 value = field.get_default()
                 value = self.prepare_default(value)
                 if isinstance(field, models.BinaryField):
-                    if value == "''":
+                    if value == "b''":
                         value = 'EMPTY_BLOB()'
                     else:
                         value = 'blob( %s' % value + ')'
@@ -620,6 +629,9 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
                 deferred_constraints, rel_old_field, rel_new_field, new_field.rel.through)
 
     def _reorg_tables(self):
+        # TODO: I don't think IBM i supports this. ADMINTABINFO doesn't exist
+        return
+
         checkReorgSQL = "select TABSCHEMA, TABNAME from SYSIBMADM.ADMINTABINFO where REORG_PENDING = 'Y'"
         res = []
         reorgSQLs = []

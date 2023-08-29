@@ -22,9 +22,9 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.5"
-Django = ">=2.2"
-pyodbc = ">=4.0"
+python = ">=3.7"
+Django = "^2.2"
+pyodbc = ">=4.0.39"
 
 [tool.poetry.plugins."django.db.backends"]
 django_ibmi = "django_ibmi"

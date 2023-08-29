@@ -16,11 +16,8 @@
 # | Authors: Ambrish Bhargava, Tarun Pasrija, Rahul Priyadarshi              |
 # +--------------------------------------------------------------------------+
 from collections import namedtuple
-try:
-    from django.db.backends import BaseDatabaseIntrospection
-except ImportError:
-    from django.db.backends.base.introspection import BaseDatabaseIntrospection
 
+from django.db.backends.base.introspection import BaseDatabaseIntrospection, TableInfo
 
 # TODO fix pyodbc access in Introspection when doing rest of module
 # after fix to DatabaseWrapper and CursorWrapper
@@ -39,16 +36,34 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         return super().get_field_type(data_type, description)
 
     # Converting table name to lower case.
-    def table_name_converter(self, name):
-        return name.lower()
+    # TODO: Replaced with identifier_converter in Django 2.2
+    #       However, we shouldn't be doing this anyway because identifiers are case-senstive when quoted
+    #def table_name_converter(self, name):
+    #    return name.lower()
 
     # Getting the list of all tables, which are present under current schema.
     def get_table_list(self, cursor):
-        TableInfo = namedtuple('TableInfo', ['name', 'type'])
-        table_list = []
-        for table in cursor.connection.tables(cursor.connection.get_current_schema()):
-            table_list.append(TableInfo(table['TABLE_NAME'].lower(), 't'))
-        return table_list
+        cursor.execute("""SELECT
+            TABLE_NAME,
+            CASE 
+                WHEN TABLE_TYPE IN ('P', 'T') THEN 't'
+                ELSE 'v'
+            END
+        FROM SYSTABLES
+        WHERE SYSTEM_TABLE = 'N'
+        """)
+        return [TableInfo(*row) for row in cursor.fetchall()]
+
+        #from pprint import pprint
+        # print(type(cursor))
+        # print(dir(cursor))
+        # exit()
+        # pprint(cursor)
+        #TableInfo = namedtuple('TableInfo', ['name', 'type'])
+        #table_list = []
+        # for row in cursor.tables():
+        #     table_list.append(TableInfo(row[2], 't'))
+        #return [TableInfo(row[2], 't') for row in cursor.tables()]
 
     # Generating a dictionary for foreign key details, which are present under current schema.
     def get_relations(self, cursor, table_name):
@@ -104,20 +119,12 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
 
     # Getting the description of the table.
     def get_table_description(self, cursor, table_name):
-        qn = self.connection.ops.quote_name
         description = []
-        dbms_name = 'dbms_name'
         schema = cursor.connection.get_current_schema()
 
-        if getattr(cursor.connection, dbms_name) == 'AS':
-            sql = "SELECT TYPE FROM QSYS2.SYSTABLES WHERE TABLE_SCHEMA='%(schema)s' AND TABLE_NAME='%(table)s'" % {
-                'schema': schema.upper(), 'table': table_name.upper()}
-        elif getattr(cursor.connection, dbms_name) != 'DB2':
-            sql = "SELECT TYPE FROM SYSCAT.TABLES WHERE TABSCHEMA='%(schema)s' AND TABNAME='%(table)s'" % {
-                'schema': schema.upper(), 'table': table_name.upper()}
-        else:
-            sql = "SELECT TYPE FROM SYSIBM.SYSTABLES WHERE CREATOR='%(schema)s' AND NAME='%(table)s'" % {
-                'schema': schema.upper(), 'table': table_name.upper()}
+        sql = "SELECT TYPE FROM QSYS2.SYSTABLES WHERE TABLE_SCHEMA='%(schema)s' AND TABLE_NAME='%(table)s'" % {
+            'schema': schema, 'table': table_name}
+        
         cursor.execute(sql)
         table_type = cursor.fetchone()[0]
 
@@ -131,17 +138,10 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
     def get_constraints(self, cursor, table_name):
         constraints = {}
         schema = cursor.connection.get_current_schema()
-        dbms_name = 'dbms_name'
 
-        if getattr(cursor.connection, dbms_name) == 'AS':
-            sql = "SELECT CONSTRAINT_NAME, COLUMN_NAME FROM QSYS2.SYSCSTCOL WHERE TABLE_SCHEMA='%(schema)s' AND " \
-                  "TABLE_NAME='%(table)s'" % {'schema': schema.upper(), 'table': table_name.upper()}
-        elif getattr(cursor.connection, dbms_name) != 'DB2':
-            sql = "SELECT CONSTNAME, COLNAME FROM SYSCAT.COLCHECKS WHERE TABSCHEMA='%(schema)s' AND TABNAME='%(table)s'" % {
-                'schema': schema.upper(), 'table': table_name.upper()}
-        else:
-            sql = "SELECT CHECKNAME, COLNAME FROM SYSIBM.SYSCHECKDEP WHERE TBOWNER='%(schema)s' AND TBNAME='%(table)s'" % {
-                'schema': schema.upper(), 'table': table_name.upper()}
+        sql = "SELECT CONSTRAINT_NAME, COLUMN_NAME FROM QSYS2.SYSCSTCOL WHERE TABLE_SCHEMA='%(schema)s' AND " \
+                "TABLE_NAME='%(table)s'" % {'schema': schema, 'table': table_name}
+
         cursor.execute(sql)
         for constname, colname in cursor.fetchall():
             if constname not in constraints:
@@ -155,19 +155,11 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
                 }
             constraints[constname]['columns'].append(colname.lower())
 
-        if getattr(cursor.connection, dbms_name) == 'AS':
-            sql = "SELECT KEYCOL.CONSTRAINT_NAME, KEYCOL.COLUMN_NAME FROM QSYS2.SYSKEYCST KEYCOL INNER JOIN " \
-                  "QSYS2.SYSCST TABCONST ON KEYCOL.CONSTRAINT_NAME=TABCONST.CONSTRAINT_NAME WHERE TABCONST.TABLE_SCHEMA=" \
-                  "'%(schema)s' and TABCONST.TABLE_NAME='%(table)s' " \
-                  "and TABCONST.TYPE='U'" % {'schema': schema.upper(), 'table': table_name.upper()}
-        elif getattr(cursor.connection, dbms_name) != 'DB2':
-            sql = "SELECT KEYCOL.CONSTNAME, KEYCOL.COLNAME FROM SYSCAT.KEYCOLUSE KEYCOL INNER JOIN SYSCAT.TABCONST TABCONST " \
-                  "ON KEYCOL.CONSTNAME=TABCONST.CONSTNAME WHERE TABCONST.TABSCHEMA='%(schema)s' and TABCONST.TABNAME=" \
-                  "'%(table)s' and TABCONST.TYPE='U'" % {'schema': schema.upper(), 'table': table_name.upper()}
-        else:
-            sql = "SELECT KEYCOL.CONSTNAME, KEYCOL.COLNAME FROM SYSIBM.SYSKEYCOLUSE KEYCOL INNER JOIN SYSIBM.SYSTABCONST " \
-                  "TABCONST ON KEYCOL.CONSTNAME=TABCONST.CONSTNAME WHERE TABCONST.TBCREATOR='%(schema)s' AND TABCONST.TBNAME" \
-                  "='%(table)s' AND TABCONST.TYPE='U'" % {'schema': schema.upper(), 'table': table_name.upper()}
+        sql = "SELECT KEYCOL.CONSTRAINT_NAME, KEYCOL.COLUMN_NAME FROM QSYS2.SYSKEYCST KEYCOL INNER JOIN " \
+                "QSYS2.SYSCST TABCONST ON KEYCOL.CONSTRAINT_NAME=TABCONST.CONSTRAINT_NAME WHERE TABCONST.TABLE_SCHEMA=" \
+                "'%(schema)s' and TABCONST.TABLE_NAME='%(table)s' " \
+                "and TABCONST.TYPE='U'" % {'schema': schema, 'table': table_name}
+
         cursor.execute(sql)
         for constname, colname in cursor.fetchall():
             if constname not in constraints:

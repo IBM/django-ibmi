@@ -29,12 +29,10 @@ try:
 except ImportError:
     pytz = None
 
-from django.db import utils
+from django.db import utils, NotSupportedError
 
 from django.utils.timezone import is_aware, utc
 from django.conf import settings
-
-dbms_name = 'dbms_name'
 
 
 class DatabaseOperations (BaseDatabaseOperations):
@@ -75,8 +73,8 @@ class DatabaseOperations (BaseDatabaseOperations):
     def get_db_converters(self, expression):
         converters = super().get_db_converters(expression)
 
-        field_type = expression.output_field.get_internal_type()
-        if field_type in ('BinaryField',):
+        internal_type = expression.output_field.get_internal_type()
+        if internal_type in ('BinaryField',):
             converters.append(self.convert_binaryfield_value)
         #  else:
         #   converters.append(self.convert_empty_values)
@@ -87,17 +85,18 @@ class DatabaseOperations (BaseDatabaseOperations):
         """
         return converters
 
-    def convert_empty_values(self, value, expression, context):
-        # Oracle stores empty strings as null. We need to undo this in
-        # order to adhere to the Django convention of using the empty
-        # string instead of null, but only if the field accepts the
-        # empty string.
-        field = expression.output_field
-        if value is None and field.empty_strings_allowed:
-            value = ''
-            if field.get_internal_type() == 'BinaryField':
-                value = b''
-        return value
+    # TODO: Unused
+    # def convert_empty_values(self, value, expression, context):
+    #     # Oracle stores empty strings as null. We need to undo this in
+    #     # order to adhere to the Django convention of using the empty
+    #     # string instead of null, but only if the field accepts the
+    #     # empty string.
+    #     field = expression.output_field
+    #     if value is None and field.empty_strings_allowed:
+    #         value = ''
+    #         if field.get_internal_type() == 'BinaryField':
+    #             value = b''
+    #     return value
 
     def combine_expression(self, operator, sub_expressions):
         if operator == '%%':
@@ -118,6 +117,13 @@ class DatabaseOperations (BaseDatabaseOperations):
             return super().combine_expression(operator, sub_expressions)
 
     def convert_binaryfield_value(self, value, expression, connections, context):
+        from pprint import pprint
+        pprint(value)
+        pprint(expression)
+        pprint(connections)
+        pprint(context)
+        exit()
+
         return value
 
     def format_for_duration_arithmetic(self, sql):
@@ -242,8 +248,21 @@ class DatabaseOperations (BaseDatabaseOperations):
 
     # Function to return value of auto-generated field of last executed
     # insert query.
-    def last_insert_id(self, cursor, table_name, pk_name):
-        return cursor.last_identity_val
+    def last_insert_id_old(self, cursor, table_name, pk_name):
+        # TODO: Look up sequence_name from table_naem and pk_name
+        sql = "SELECT PREVIOUS VALUE FOR {sequence_name} FROM SYSIBM.SYSDUMMY1"
+        return cursor.execute('SELECT IDENTITY_VAL_LOCAL() FROM SYSIBM.SYSDUMMY1').fetchval()
+
+    def return_insert_id(self):
+        # We're supposed to return an SQL fragment and params to be added to the INSERT query
+        # to return the last insert ID, however Db2 doesn't support such syntax. We can however,
+        # fetch the last ID with IDENTITY_VAL_LOCAL, however we need to override this function
+        # in order to do so.
+        return (None, None)
+    
+    def fetch_returned_insert_id(self, cursor):
+        cursor.execute('SELECT IDENTITY_VAL_LOCAL() FROM SYSIBM.SYSDUMMY1')
+        return cursor.fetchone()[0]
 
     # In case of WHERE clause, if the search is required to be case
     # insensitive then converting left hand side field to upper.
@@ -252,19 +271,13 @@ class DatabaseOperations (BaseDatabaseOperations):
             return "UPPER(%s)"
         return "%s"
 
-    # As DB2 v91 specifications,
-    # Maximum length of a table name and Maximum length of a column name is 128
-    # http://publib.boulder.ibm.com/infocenter/db2e/v9r1/index.jsp?topic=/
-    # com.ibm.db2e.doc/db2elimits.html
+
     def max_name_length(self):
         return 128
 
-    # As DB2 v97 specifications,
-    # Maximum length of a database name is 8
-    # http://publib.boulder.ibm.com/infocenter/db2luw/v9r7/topic/com.ibm.db2.
-    # luw.sql.ref.doc/doc/r0001029.html
+
     def max_db_name_length(self):
-        return 8
+        return 128
 
     def no_limit_value(self):
         return None
@@ -275,17 +288,13 @@ class DatabaseOperations (BaseDatabaseOperations):
 
     # Function to quote the name of schema, table and column.
     def quote_name(self, name=None):
-        name = name.upper()
-        if name.startswith("\"") & name.endswith("\""):
+        # TODO: Should not uppercase
+        #name = name.upper()
+        
+        if name.startswith("\"") and name.endswith("\""):
             return name
 
-        if name.startswith("\""):
-            return "%s\"" % name
-
-        if name.endswith("\""):
-            return "\"%s" % name
-
-        return "\"%s\"" % name
+        return f"\"{name}\""
 
     # SQL to return RANDOM number.
     # Reference: http://publib.boulder.ibm.com/infocenter/db2luw/v8/topic/com.
@@ -320,7 +329,7 @@ class DatabaseOperations (BaseDatabaseOperations):
     # all the sequences.
     def sql_flush(self, style, tables, sequences, allow_cascade=False):
         # TODO implement get_current_schema method
-        curr_schema = self.connection.connection.get_current_schema().upper()
+        curr_schema = self.connection.connection.get_current_schema()
         sqls = []
         if tables:
             fk_tab = 'TABNAME'
@@ -391,7 +400,7 @@ class DatabaseOperations (BaseDatabaseOperations):
 
             for table in tables:
                 sqls.append("CALL FKEY_ALT_CONST( '%s', '%s' );" %
-                            (table.upper(), curr_schema))
+                            (table, curr_schema))
 
             for table in tables:
                 sqls.append(style.SQL_KEYWORD("DELETE") + " " +
@@ -478,16 +487,7 @@ class DatabaseOperations (BaseDatabaseOperations):
         return sqls
 
     def tablespace_sql(self, tablespace, inline=False):
-        # inline is used for column indexes defined in-line with column
-        # definition, like: CREATE TABLE "TABLE1" ("ID_OTHER" VARCHAR(20) NOT
-        # NULL UNIQUE) IN "TABLESPACE1"; couldn't find support for this in
-        # create table (http://publib.boulder.ibm.com/infocenter/db2luw/v9
-        # /topic/com.ibm.db2.udb.admin.doc/doc/r0000927.htm)
-        if inline:
-            sql = ""
-        else:
-            sql = "IN %s" % self.quote_name(tablespace)
-        return sql
+        return ''
 
     def value_to_db_datetime(self, value):
         if value is None:
@@ -514,26 +514,46 @@ class DatabaseOperations (BaseDatabaseOperations):
         upper_bound = datetime.date(int(value), 12, 31)
         return [lower_bound, upper_bound]
 
-    def bulk_insert_sql(self, fields, num_values):
-        values_sql = "( %s )" % (", ".join(["%s"] * len(fields)))
-        if isinstance(num_values, int):
-            bulk_values_sql = "VALUES " + \
-                ", ".join([values_sql] * (num_values))
-        else:
-            bulk_values_sql = "VALUES " + \
-                ", ".join([values_sql] * len(num_values))
-        return bulk_values_sql
+    # TODO: Investigate pyodbc fast_executemany support with the driver
+    # def bulk_insert_sql(self, fields, num_values):
+    #     values_sql = "( %s )" % (", ".join(["%s"] * len(fields)))
+    #     if isinstance(num_values, int):
+    #         bulk_values_sql = "VALUES " + \
+    #             ", ".join([values_sql] * (num_values))
+    #     else:
+    #         bulk_values_sql = "VALUES " + \
+    #             ", ".join([values_sql] * len(num_values))
+    #     return bulk_values_sql
 
-    def for_update_sql(self, nowait=False):
-        # DB2 doesn't support nowait select for update
+    def for_update_sql(self, nowait=False, skip_locked=False, of=()):
+        # TODO: Need to set the following features to be effective:
+        # has_select_for_update_nowait
+        # has_select_for_update_skip_locked
+        # has_select_for_update_of
+
         if nowait:
-            raise utils.DatabaseError(
-                "Nowait Select for update not supported ")
-        else:
-            return 'WITH RS USE AND KEEP UPDATE LOCKS'
+            raise NotSupportedError(
+                "FOR UPDATE NOWAIT is not supported by this database backend"
+            )
 
-    def distinct_sql(self, fields):
+        if skip_locked:
+            # TODO: This should be supported "SKIP LOCKED DATA"
+            raise NotSupportedError(
+                "FOR UPDATE SKIP LOCKED is not supported by this database backend"
+            )
+        
+        if of:
+            # TODO: This should be supported "FOR UPDATE OF (col1, col2, ...)"
+            raise NotSupportedError(
+                "FOR UPDATE OF is not supported by this database backend"
+            )
+        
+        # TODO: Check this
+        return 'WITH RS USE AND KEEP UPDATE LOCKS'
+
+    # TODO: base class already handles this identically
+    def distinct_sql_old(self, fields, params):
         if fields:
             raise ValueError("distinct_on_fields not supported")
         else:
-            return 'DISTINCT'
+            return ['DISTINCT'], []
