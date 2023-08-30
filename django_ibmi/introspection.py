@@ -67,13 +67,33 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
 
     # Generating a dictionary for foreign key details, which are present under current schema.
     def get_relations(self, cursor, table_name):
-        relations = {}
-        schema = cursor.connection.get_current_schema()
-        for fk in cursor.connection.foreign_keys(True, schema, table_name):
-            relations[self.__get_col_index(cursor, schema, table_name, fk['FKCOLUMN_NAME'])] = (
-                self.__get_col_index(cursor, schema, fk['PKTABLE_NAME'], fk['PKCOLUMN_NAME']), fk['PKTABLE_NAME'].lower())
+        # Return a dictionary of {field_name: (field_name_other_table, other_table)}
 
-        return relations
+        cursor.execute("""SELECT
+                F.COLNAME,
+                P.COLNAME,
+                P.TBNAME
+            FROM
+                SYSKEYCST F, SYSKEYCST P, SYSREFCST R,
+            WHERE
+                F.RELNAME = R.RELNAME AND
+                P.RELNAME = R.UNQNAME AND
+                P.COLSEQ = F.COLSEQ AND
+                F.TBNAME = ?
+        """, [table_name])
+
+        return {
+            field_name: (field_name_other_table, other_table)
+            for field_name, field_name_other_table, other_table in cursor.fetchall()
+        }
+
+        # relations = {}
+        # schema = cursor.connection.get_current_schema()
+        # for fk in cursor.connection.foreign_keys(True, schema, table_name):
+        #     relations[self.__get_col_index(cursor, schema, table_name, fk['FKCOLUMN_NAME'])] = (
+        #         self.__get_col_index(cursor, schema, fk['PKTABLE_NAME'], fk['PKCOLUMN_NAME']), fk['PKTABLE_NAME'].lower())
+        #
+        # return relations
 
     # Private method. Getting Index position of column by its name
     def __get_col_index(self, cursor, schema, table_name, col_name):
