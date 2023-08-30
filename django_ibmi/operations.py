@@ -181,9 +181,9 @@ class DatabaseOperations (BaseDatabaseOperations):
                     field_name, hr, min)
 
         if lookup_type.upper() == 'WEEK_DAY':
-            return " DAYOFWEEK(%s) " % (field_name), []
+            return " DAYOFWEEK(%s) " % (field_name)
         else:
-            return " %s(%s) " % (lookup_type.upper(), field_name), []
+            return " %s(%s) " % (lookup_type.upper(), field_name)
 
     # Truncating the date value on the basic of lookup type. e.g If input is
     # 2008-12-04 and month then output will be 2008-12-01 00:00:00 Reference:
@@ -223,11 +223,11 @@ class DatabaseOperations (BaseDatabaseOperations):
             sql = sql % (field_name, 7, '-01-00.00.00.000000')
         elif lookup_type.upper() == 'YEAR':
             sql = sql % (field_name, 4, '-01-01-00.00.00.000000')
-        return sql, []
+        return sql
 
     def date_interval_sql(self, timedelta):
         return " %d days + %d seconds + %d microseconds" % (
-            timedelta.days, timedelta.seconds, timedelta.microseconds), []
+            timedelta.days, timedelta.seconds, timedelta.microseconds)
 
     # As casting is not required, so nothing is required to do in this function.
     def datetime_cast_sql(self):
