@@ -407,17 +407,23 @@ class DB2CursorWrapper:
             parameters = self._format_parameters(parameters)
 
             try:
-                print(operation)
                 self.cursor.execute(operation, parameters)
                 if doReorg == 1:
                     return self._reorg_tables()
             except IntegrityError as e:
+                print(e)
+                print(operation)
+                pprint(parameters)
                 raise utils.IntegrityError(*e.args) from e
 
             except ProgrammingError as e:
+                print(e)
+                print(operation)
+                pprint(parameters)
                 raise utils.ProgrammingError(*e.args) from e
 
             except DatabaseError as e:
+                print(e)
                 print(operation)
                 pprint(parameters)
                 raise utils.DatabaseError(*e.args) from e
