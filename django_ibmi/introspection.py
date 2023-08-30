@@ -101,145 +101,156 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             return col['ORDINAL_POSITION'] - 1
 
     def get_key_columns(self, cursor, table_name):
-        relations = []
-        schema = cursor.connection.get_current_schema()
-        for fk in cursor.connection.foreign_keys(True, schema, table_name):
-            relations.append((fk['FKCOLUMN_NAME'].lower(
-            ), fk['PKTABLE_NAME'].lower(), fk['PKCOLUMN_NAME'].lower()))
+        # TODO: Implement SQL for this
+        return []
+        # relations = []
+        # schema = cursor.connection.get_current_schema()
+        # for fk in cursor.connection.foreign_keys(True, schema, table_name):
+        #     relations.append((fk['FKCOLUMN_NAME'].lower(
+        #     ), fk['PKTABLE_NAME'].lower(), fk['PKCOLUMN_NAME'].lower()))
 
-        return relations
+        # return relations
 
     # Getting list of indexes associated with the table provided.
     def get_indexes(self, cursor, table_name):
-        indexes = {}
-        # To skip indexes across multiple fields
-        multifield_indexSet = set()
-        schema = cursor.connection.get_current_schema()
-        all_indexes = cursor.connection.indexes(True, schema, table_name)
-        for index in all_indexes:
-            if (index['ORDINAL_POSITION'] is not None) and (index['ORDINAL_POSITION'] == 2):
-                multifield_indexSet.add(index['INDEX_NAME'])
+        # TODO: Implement SQL for this
+        return {}
+        # indexes = {}
+        # # To skip indexes across multiple fields
+        # multifield_indexSet = set()
+        # schema = cursor.connection.get_current_schema()
+        # all_indexes = cursor.connection.indexes(True, schema, table_name)
+        # for index in all_indexes:
+        #     if (index['ORDINAL_POSITION'] is not None) and (index['ORDINAL_POSITION'] == 2):
+        #         multifield_indexSet.add(index['INDEX_NAME'])
 
-        for index in all_indexes:
-            temp = {}
-            if index['INDEX_NAME'] in multifield_indexSet:
-                continue
+        # for index in all_indexes:
+        #     temp = {}
+        #     if index['INDEX_NAME'] in multifield_indexSet:
+        #         continue
 
-            if index['NON_UNIQUE']:
-                temp['unique'] = False
-            else:
-                temp['unique'] = True
-            temp['primary_key'] = False
-            indexes[index['COLUMN_NAME'].lower()] = temp
+        #     if index['NON_UNIQUE']:
+        #         temp['unique'] = False
+        #     else:
+        #         temp['unique'] = True
+        #     temp['primary_key'] = False
+        #     indexes[index['COLUMN_NAME'].lower()] = temp
 
-        for index in cursor.connection.primary_keys(True, schema, table_name):
-            indexes[index['COLUMN_NAME'].lower()]['primary_key'] = True
+        # for index in cursor.connection.primary_keys(True, schema, table_name):
+        #     indexes[index['COLUMN_NAME'].lower()]['primary_key'] = True
 
-        return indexes
+        # return indexes
 
     # Getting the description of the table.
     def get_table_description(self, cursor, table_name):
-        description = []
-        schema = cursor.connection.get_current_schema()
-
-        sql = "SELECT TYPE FROM QSYS2.SYSTABLES WHERE TABLE_SCHEMA='%(schema)s' AND TABLE_NAME='%(table)s'" % {
-            'schema': schema, 'table': table_name}
+        cursor.execute(
+            "SELECT * FROM %s FETCH FIRST 1 ROWS ONLY" % qn(table_name))
         
-        cursor.execute(sql)
-        table_type = cursor.fetchone()[0]
+        # TODO: Ensure this matches what inspectdb.Command.handle_inspection wants
+        return cursor.description
+        # description = []
+        # schema = cursor.connection.get_current_schema()
 
-        if table_type != 'X':
-            cursor.execute(
-                "SELECT * FROM %s FETCH FIRST 1 ROWS ONLY" % qn(table_name))
-            for desc in cursor.description:
-                description.append([desc[0].lower(), ] + desc[1:])
-        return description
+        # sql = "SELECT TYPE FROM SYSTABLES TABLE_NAME='%(table)s'" % {
+        #     'schema': schema, 'table': table_name}
+        
+        # cursor.execute("SELECT TYPE FROM SYSTABLES TABLE_NAME=?", [table_name])
+        # table_type = cursor.fetchone()[0]
+
+        # if table_type != 'X':
+        #     cursor.execute(
+        #         "SELECT * FROM %s FETCH FIRST 1 ROWS ONLY" % qn(table_name))
+        #     for desc in cursor.description:
+        #         description.append([desc[0].lower(), ] + desc[1:])
+        # return description
 
     def get_constraints(self, cursor, table_name):
-        constraints = {}
-        schema = cursor.connection.get_current_schema()
+        # TODO: Implement this in SQL
+        return {}
+        # constraints = {}
+        # schema = cursor.connection.get_current_schema()
 
-        sql = "SELECT CONSTRAINT_NAME, COLUMN_NAME FROM QSYS2.SYSCSTCOL WHERE TABLE_SCHEMA='%(schema)s' AND " \
-                "TABLE_NAME='%(table)s'" % {'schema': schema, 'table': table_name}
+        # sql = "SELECT CONSTRAINT_NAME, COLUMN_NAME FROM QSYS2.SYSCSTCOL WHERE TABLE_SCHEMA='%(schema)s' AND " \
+        #         "TABLE_NAME='%(table)s'" % {'schema': schema, 'table': table_name}
 
-        cursor.execute(sql)
-        for constname, colname in cursor.fetchall():
-            if constname not in constraints:
-                constraints[constname] = {
-                    'columns': [],
-                    'primary_key': False,
-                    'unique': False,
-                    'foreign_key': None,
-                    'check': True,
-                    'index': False
-                }
-            constraints[constname]['columns'].append(colname.lower())
+        # cursor.execute(sql)
+        # for constname, colname in cursor.fetchall():
+        #     if constname not in constraints:
+        #         constraints[constname] = {
+        #             'columns': [],
+        #             'primary_key': False,
+        #             'unique': False,
+        #             'foreign_key': None,
+        #             'check': True,
+        #             'index': False
+        #         }
+        #     constraints[constname]['columns'].append(colname.lower())
 
-        sql = "SELECT KEYCOL.CONSTRAINT_NAME, KEYCOL.COLUMN_NAME FROM QSYS2.SYSKEYCST KEYCOL INNER JOIN " \
-                "QSYS2.SYSCST TABCONST ON KEYCOL.CONSTRAINT_NAME=TABCONST.CONSTRAINT_NAME WHERE TABCONST.TABLE_SCHEMA=" \
-                "'%(schema)s' and TABCONST.TABLE_NAME='%(table)s' " \
-                "and TABCONST.TYPE='U'" % {'schema': schema, 'table': table_name}
+        # sql = "SELECT KEYCOL.CONSTRAINT_NAME, KEYCOL.COLUMN_NAME FROM QSYS2.SYSKEYCST KEYCOL INNER JOIN " \
+        #         "QSYS2.SYSCST TABCONST ON KEYCOL.CONSTRAINT_NAME=TABCONST.CONSTRAINT_NAME WHERE TABCONST.TABLE_SCHEMA=" \
+        #         "'%(schema)s' and TABCONST.TABLE_NAME='%(table)s' " \
+        #         "and TABCONST.TYPE='U'" % {'schema': schema, 'table': table_name}
 
-        cursor.execute(sql)
-        for constname, colname in cursor.fetchall():
-            if constname not in constraints:
-                constraints[constname] = {
-                    'columns': [],
-                    'primary_key': False,
-                    'unique': True,
-                    'foreign_key': None,
-                    'check': False,
-                    'index': True
-                }
-            constraints[constname]['columns'].append(colname.lower())
+        # cursor.execute(sql)
+        # for constname, colname in cursor.fetchall():
+        #     if constname not in constraints:
+        #         constraints[constname] = {
+        #             'columns': [],
+        #             'primary_key': False,
+        #             'unique': True,
+        #             'foreign_key': None,
+        #             'check': False,
+        #             'index': True
+        #         }
+        #     constraints[constname]['columns'].append(colname.lower())
 
-        for pkey in cursor.connection.primary_keys(None, schema, table_name):
-            if pkey['PK_NAME'] not in constraints:
-                constraints[pkey['PK_NAME']] = {
-                    'columns': [],
-                    'primary_key': True,
-                    'unique': False,
-                    'foreign_key': None,
-                    'check': False,
-                    'index': True
-                }
-            constraints[pkey['PK_NAME']]['columns'].append(
-                pkey['COLUMN_NAME'].lower())
+        # for pkey in cursor.connection.primary_keys(None, schema, table_name):
+        #     if pkey['PK_NAME'] not in constraints:
+        #         constraints[pkey['PK_NAME']] = {
+        #             'columns': [],
+        #             'primary_key': True,
+        #             'unique': False,
+        #             'foreign_key': None,
+        #             'check': False,
+        #             'index': True
+        #         }
+        #     constraints[pkey['PK_NAME']]['columns'].append(
+        #         pkey['COLUMN_NAME'].lower())
 
-        for fk in cursor.connection.foreign_keys(True, schema, table_name):
-            if fk['FK_NAME'] not in constraints:
-                constraints[fk['FK_NAME']] = {
-                    'columns': [],
-                    'primary_key': False,
-                    'unique': False,
-                    'foreign_key': (fk['PKTABLE_NAME'].lower(), fk['PKCOLUMN_NAME'].lower()),
-                    'check': False,
-                    'index': False
-                }
-            constraints[fk['FK_NAME']]['columns'].append(
-                fk['FKCOLUMN_NAME'].lower())
-            if fk['PKCOLUMN_NAME'].lower() not in constraints[fk['FK_NAME']]['foreign_key']:
-                fkeylist = list(constraints[fk['FK_NAME']]['foreign_key'])
-                fkeylist.append(fk['PKCOLUMN_NAME'].lower())
-                constraints[fk['FK_NAME']]['foreign_key'] = tuple(fkeylist)
+        # for fk in cursor.connection.foreign_keys(True, schema, table_name):
+        #     if fk['FK_NAME'] not in constraints:
+        #         constraints[fk['FK_NAME']] = {
+        #             'columns': [],
+        #             'primary_key': False,
+        #             'unique': False,
+        #             'foreign_key': (fk['PKTABLE_NAME'].lower(), fk['PKCOLUMN_NAME'].lower()),
+        #             'check': False,
+        #             'index': False
+        #         }
+        #     constraints[fk['FK_NAME']]['columns'].append(
+        #         fk['FKCOLUMN_NAME'].lower())
+        #     if fk['PKCOLUMN_NAME'].lower() not in constraints[fk['FK_NAME']]['foreign_key']:
+        #         fkeylist = list(constraints[fk['FK_NAME']]['foreign_key'])
+        #         fkeylist.append(fk['PKCOLUMN_NAME'].lower())
+        #         constraints[fk['FK_NAME']]['foreign_key'] = tuple(fkeylist)
 
-        for index in cursor.connection.indexes(True, schema, table_name):
-            if index['INDEX_NAME'] not in constraints:
-                constraints[index['INDEX_NAME']] = {
-                    'columns': [],
-                    'primary_key': False,
-                    'unique': False,
-                    'foreign_key': None,
-                    'check': False,
-                    'index': True
-                }
-            elif constraints[index['INDEX_NAME']]['unique']:
-                continue
-            elif constraints[index['INDEX_NAME']]['primary_key']:
-                continue
-            constraints[index['INDEX_NAME']]['columns'].append(
-                index['COLUMN_NAME'].lower())
-        return constraints
+        # for index in cursor.connection.indexes(True, schema, table_name):
+        #     if index['INDEX_NAME'] not in constraints:
+        #         constraints[index['INDEX_NAME']] = {
+        #             'columns': [],
+        #             'primary_key': False,
+        #             'unique': False,
+        #             'foreign_key': None,
+        #             'check': False,
+        #             'index': True
+        #         }
+        #     elif constraints[index['INDEX_NAME']]['unique']:
+        #         continue
+        #     elif constraints[index['INDEX_NAME']]['primary_key']:
+        #         continue
+        #     constraints[index['INDEX_NAME']]['columns'].append(
+        #         index['COLUMN_NAME'].lower())
+        # return constraints
 
     def get_sequences(self, cursor, table_name, table_fields=()):
         from django.db import models
