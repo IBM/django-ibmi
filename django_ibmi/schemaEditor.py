@@ -560,12 +560,17 @@ class DB2SchemaEditor(BaseDatabaseSchemaEditor):
             if p_key:
                 field.primary_key = True
                 cur = self.connection.cursor()
+                cur.execute("SELECT RELNAME FROM SYSCST WHERE TYPE = 'PRIMARY KEY' AND TBNAME = ?",
+                     [model._meta.db_table]
+                )
+
+                # cur.connection.primary_keys(True, current_schema, model._meta.db_table):
                 # remove other pk if available
-                for other_pk in cur.connection.primary_keys(True, cur.connection.get_current_schema(), model._meta.db_table):
+                for other_pk in cur:
                     self.execute(
                         self.sql_delete_pk % {
                             'table': self.quote_name(model._meta.db_table),
-                            'name': other_pk['PK_NAME']
+                            'name': other_pk[0]
                         }
                     )
                 sql = self.sql_create_pk % {'table': self.quote_name(model._meta.db_table), 'name': self._create_index_name(
