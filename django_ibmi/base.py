@@ -116,6 +116,8 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     can_introspect_ip_address_field = False
     can_introspect_time_field = True
 
+    bare_select_suffix = ' FROM SYSIBM.SYSDUMMY1'
+
 
 class DatabaseValidation(BaseDatabaseValidation):
     # Need to do validation for IBM i and pyodbc version
