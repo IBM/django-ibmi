@@ -24,6 +24,7 @@ except ImportError:
 
 from . import query
 import datetime
+import uuid
 try:
     import pytz
 except ImportError:
@@ -76,6 +77,8 @@ class DatabaseOperations (BaseDatabaseOperations):
         internal_type = expression.output_field.get_internal_type()
         if internal_type in ('BinaryField',):
             converters.append(self.convert_binaryfield_value)
+        elif internal_type == 'UUIDField':
+            converters.append(self.convert_uuidfield_value)
         #  else:
         #   converters.append(self.convert_empty_values)
         """Get a list of functions needed to convert field data.
@@ -125,6 +128,13 @@ class DatabaseOperations (BaseDatabaseOperations):
         exit()
 
         return value
+
+
+    def convert_uuidfield_value(self, value, expression, connection):
+        if value is not None:
+            value = uuid.UUID(value)
+        return value
+
 
     def format_for_duration_arithmetic(self, sql):
         return ' %s MICROSECONDS' % sql
