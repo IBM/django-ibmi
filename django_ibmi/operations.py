@@ -229,9 +229,19 @@ class DatabaseOperations (BaseDatabaseOperations):
         return " %d days + %d seconds + %d microseconds" % (
             timedelta.days, timedelta.seconds, timedelta.microseconds)
 
-    # As casting is not required, so nothing is required to do in this function.
-    def datetime_cast_sql(self):
-        return "%s"
+    def _convert_field_to_tz(self, field_name, tzname):
+        if settings.USE_TZ:
+            # TODO: Figure out how to implement this since Db2 doesn't provide any timezone support
+            return field_name
+        return field_name
+
+    def datetime_cast_date_sql(self, field_name, tzname):
+        field_name = self._convert_field_to_tz(field_name, tzname)
+        return f"DATE({field_name})"
+
+    def datetime_cast_time_sql(self, field_name, tzname):
+        field_name = self._convert_field_to_tz(field_name, tzname)
+        return f"TIME({field_name})"
 
     def deferrable_sql(self):
         return ""
