@@ -333,12 +333,6 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     def _set_autocommit(self, autocommit):
         self.connection.autocommit = autocommit
 
-    def close(self):
-        self.validate_thread_sharing()
-        if self.connection is not None:
-            self.connection.close()
-            self.connection = None
-
     def get_server_version(self):
         if not self.connection:
             self.cursor()
