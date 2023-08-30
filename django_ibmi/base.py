@@ -323,7 +323,11 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         pass
 
     def is_usable(self):
-        # TODO implement is_usable method correctly
+        try:
+            self.connection.cursor()
+        except pyodbc.ProgrammingError:
+            return False
+
         return True
 
     def _set_autocommit(self, autocommit):
