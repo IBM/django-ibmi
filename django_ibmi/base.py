@@ -189,6 +189,31 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         "iendswith":    "LIKE UPPER(%s) ESCAPE '\\'",
     }
 
+    # NOTE: These were added in Django 1.7 (commit 28a02259cb9) and assumed to
+    #       exist for all backends, but there's nothing mentioning this in the
+    #       docs that it is needed. Without it, if you try to use a filter you'll
+    #       get an AttributeError in django/db/models/lookups.py
+
+    # The patterns below are used to generate SQL pattern lookup clauses when
+    # the right-hand side of the lookup isn't a raw string (it might be an expression
+    # or the result of a bilateral transformation).
+    # In those cases, special characters for LIKE operators (e.g. \, *, _) should be
+    # escaped on database side.
+    #
+    # Note: we use str.format() here for readability as '%' is used as a wildcard for
+    # the LIKE operator.
+    pattern_esc = r"REPLACE(REPLACE(REPLACE({}, '\\', '\\\\'), '%%', '\%%'), '_', '\_')"
+    pattern_ops = {
+        # TODO: This was copied from MySQL backend, make sure it's correct for us
+        # TODO: Figure out how to do case-sensitive and case-insensitive matches
+        'contains': "LIKE CONCAT('%%', {}, '%%')",
+        'icontains': "LIKE CONCAT('%%', {}, '%%')",
+        'startswith': "LIKE CONCAT({}, '%%')",
+        'istartswith': "LIKE CONCAT({}, '%%')",
+        'endswith': "LIKE CONCAT('%%', {})",
+        'iendswith': "LIKE CONCAT('%%', {})",
+    }
+
     data_type_check_constraints = {
         'BooleanField': '%(qn_column)s IN (0,1)',
         'NullBooleanField': '(%(qn_column)s IN (0,1)) OR (%(qn_column)s IS NULL)',
