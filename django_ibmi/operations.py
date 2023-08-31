@@ -119,7 +119,7 @@ class DatabaseOperations (BaseDatabaseOperations):
             sub_expressions[1] = strr.replace('+', '-')
             return super().combine_expression(operator, sub_expressions)
 
-    def convert_binaryfield_value(self, value, expression, connections, context):
+    def convert_binaryfield_value(self, value, expression, connections):
         from pprint import pprint
         pprint(value)
         pprint(expression)
