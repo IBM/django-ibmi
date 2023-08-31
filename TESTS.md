@@ -60,3 +60,8 @@ Current issues:
   delete the rows, then add the foreign keys back. This of course requires
   recording all the details about how they were defined before dropping them
   so we can recreate them exactly, ugh.
+
+- django.db.models.expressions.Exists expression can't really be implemented on
+  Db2 for i. EXISTS is only supported in a WHERE clause, so we'd need a scalar
+  function be implemented eg. SYSTOOLS.EXISTS(). Once that exists, we can patch
+  in custom behavior by adding an "as_db2" method to the class.
