@@ -33,8 +33,8 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
     """
 
     data_types_reverse = {
-        pyodbc.SQL_CHAR:"CharField",
-        pyodbc.SQL_VARCHAR: "TextField",
+        pyodbc.SQL_CHAR: "CharField",
+        pyodbc.SQL_VARCHAR: "CharField",
         pyodbc.SQL_BINARY: "BinaryField",
         pyodbc.SQL_VARBINARY: "BinaryField",
         pyodbc.SQL_LONGVARCHAR: "TextField",
@@ -50,7 +50,7 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         pyodbc.SQL_TYPE_TIME: "TimeField",
         pyodbc.SQL_TYPE_TIMESTAMP: "DateTimeField",
         pyodbc.SQL_WCHAR: "CharField",
-        pyodbc.SQL_WVARCHAR: "TextField",
+        pyodbc.SQL_WVARCHAR: "CharField",
         pyodbc.SQL_WLONGVARCHAR: "TextField",
     }
 
