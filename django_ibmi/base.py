@@ -149,19 +149,8 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     creation_class = DatabaseCreation
     features_class = DatabaseFeatures
     introspection_class = DatabaseIntrospection
-    validation_class = DatabaseValidation
     ops_class = DatabaseOperations
-
-    # Constructor of DB2 backend support. Initializing all other classes.
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.ops = DatabaseOperations(self)
-        self.client = DatabaseClient(self)
-        self.features = DatabaseFeatures(self)
-        self.creation = DatabaseCreation(self)
-        self.introspection = DatabaseIntrospection(self)
-        self.validation = DatabaseValidation(self)
-        self.databaseWrapper = DatabaseWrapper()
+    validation_class = DatabaseValidation
 
     # Method to check if connection is live or not.
     def __is_connection(self):
