@@ -47,7 +47,7 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
         elif isinstance(value, str):
             return "'%s'" % value.replace("\'", "\'\'").replace('%', '%%')
         elif isinstance(value, (bytes, bytearray, memoryview)):
-            return "'%s'" % value.hex()
+            return "x'%s'" % value.hex()
         elif isinstance(value, bool):
             return "1" if value else "0"
         else:
@@ -608,7 +608,7 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
             rel_new_field = None
             old_field_rel_through = None
 
-        if (rel_old_field is not None) and (rel_new_field is not None):
+        if rel_old_field is not None and rel_new_field is not None:
             with self.connection.cursor() as cur:
                 constraints = self.connection.introspection.get_constraints(
                     cur, old_field_rel_through._meta.db_table)
