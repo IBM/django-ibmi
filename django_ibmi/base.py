@@ -127,22 +127,24 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     }
 
     vendor = 'DB2'
+
     operators = {
         "exact":        "= %s",
-        "iexact":       "LIKE UPPER(%s) ESCAPE '\\'",
+        "iexact":       "LIKE %s ESCAPE '\\'",
         "contains":     "LIKE %s ESCAPE '\\'",
-        "icontains":    "LIKE UPPER(%s) ESCAPE '\\'",
+        "icontains":    "LIKE %s ESCAPE '\\'",
         "gt":           "> %s",
         "gte":          ">= %s",
         "lt":           "< %s",
         "lte":          "<= %s",
         "startswith":   "LIKE %s ESCAPE '\\'",
         "endswith":     "LIKE %s ESCAPE '\\'",
-        "istartswith":  "LIKE UPPER(%s) ESCAPE '\\'",
-        "iendswith":    "LIKE UPPER(%s) ESCAPE '\\'",
+        "istartswith":  "LIKE %s ESCAPE '\\'",
+        "iendswith":    "LIKE %s ESCAPE '\\'",
     }
 
     Database = pyodbc
+    SchemaEditorClass = DB2SchemaEditor
 
     client_class = DatabaseClient
     creation_class = DatabaseCreation
@@ -165,6 +167,9 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     # Method to check if connection is live or not.
     def __is_connection(self):
         return self.connection is not None
+    
+    def _start_transaction_under_autocommit(self):
+        pass
 
     # To get dict of connection parameters
     def get_connection_params(self):
@@ -224,9 +229,8 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
     def is_usable(self):
         try:
-            # If connection is closed and unusable, a Programming error will result
-            self.connection.cursor()
-        except pyodbc.ProgrammingError:
+            self.connection.ping()
+        except pyodbc.Error:
             return False
         return True
 
@@ -240,14 +244,15 @@ class DatabaseWrapper(BaseDatabaseWrapper):
             self.connection.close()
             self.connection = None
 
-    def get_server_version(self):
-        if not self.connection:
-            self.cursor()
-        return tuple(int(version) for version in
-                     self.connection.server_info()[1].split("."))
+    def get_new_connection(self, conn_params):
+        return pyodbc.connect("Driver={%s}; UNICODESQL=1; TRUEAUTOCOMMIT=1;",
+                              **conn_params)
 
-    def schema_editor(self, *args, **kwargs):
-        return DatabaseSchemaEditor(self, *args, **kwargs)
+    def get_current_schema(self):
+        schema_query = "VALUES CURRENT SCHEMA"
+        cursor = self.connection.cursor()
+        result = cursor.execute(schema_query)
+        return result.fetchone()[0]
 
 
 class DB2CursorWrapper:
