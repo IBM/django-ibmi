@@ -28,15 +28,15 @@ class DatabaseCreation(BaseDatabaseCreation):
             return
         raise NotImplementedError
 
-    # Method to create and return test database, before creating test database it takes confirmation from user.
-    # If test database already exists then it takes confirmation from user to recreate that database .
-    # If create test database not supported in current scenario then it takes confirmation from user to use settings file's
-    # database name as test database
+    # Method to create and return test database, before creating test database it takes confirmation from user. If
+    # test database already exists then it takes confirmation from user to recreate that database.
+    # If create test database not supported in current scenario then it takes confirmation from user to use settings
+    # file's database name as test database
     def create_test_db(self, verbosity=0, autoclobber=False, keepdb=False, serialize=False):
         self.__clean_up(self.connection.cursor())
         self.connection.commit()
         self.connection.close()
-        super().create_test_db(verbosity, autoclobber,serialize, keepdb=True)
+        super().create_test_db(verbosity, autoclobber, serialize, keepdb=True)
 
     # Method to destroy database.
     def destroy_test_db(self, old_database_name=None, verbosity=1, keepdb=False, suffix=None):

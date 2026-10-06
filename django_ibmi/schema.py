@@ -129,7 +129,8 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
         if old_field.remote_field is not None and hasattr(old_field.remote_field, 'through'):
             rel_condition = (
                 old_field.remote_field.through and new_field.remote_field.through and
-                old_field.remote_field.through._meta.auto_created and new_field.remote_field.through._meta.auto_created)
+                old_field.remote_field.through._meta.auto_created and
+                new_field.remote_field.through._meta.auto_created)
         else:
             rel_condition = False
 
@@ -558,15 +559,19 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
                 field.primary_key = True
                 cur = self.connection.cursor()
                 # remove other pk if available
-                for other_pk in cur.connection.primary_keys(True, self.connection.get_current_schema(), model._meta.db_table):
+                for other_pk in cur.connection.primary_keys(True, self.connection.get_current_schema(),
+                                                            model._meta.db_table):
                     self.execute(
                         self.sql_delete_pk % {
                             'table': self.quote_name(model._meta.db_table),
                             'name': other_pk['PK_NAME']
                         }
                     )
-                sql = self.sql_create_pk % {'table': self.quote_name(model._meta.db_table), 'name': self._create_index_name(
-                    model, [field.column], suffix="_pk"), 'columns': self.quote_name(field.column)}
+                sql = self.sql_create_pk % {
+                        'table': self.quote_name(model._meta.db_table),
+                        'name': self._create_index_name(model, [field.column], suffix="_pk"),
+                        'columns': self.quote_name(field.column)
+                }
                 try:
                     self.execute(sql)
                     self._reorg_tables()
@@ -596,8 +601,7 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
             'index': {},
             'check': {}}
 
-        if((old_field.remote_field is not None and hasattr(old_field.remote_field, 'through')) and
-                (new_field.remote_field is not None and hasattr(new_field.remote_field, 'through'))):
+        if (hasattr(old_field.remote_field, 'through') and hasattr(new_field.remote_field, 'through')):
             old_field_rel_through = old_field.remote_field.through
             rel_old_field = old_field.remote_field.through._meta.get_field(
                 old_field.m2m_reverse_field_name())
