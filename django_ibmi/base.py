@@ -24,13 +24,6 @@ from distutils import util
 
 from django.core.exceptions import ImproperlyConfigured
 
-# Importing class from base module of django.db.backends
-
-try:
-    from django.db.backends import BaseDatabaseFeatures
-except ImportError:
-    from django.db.backends.base.features import BaseDatabaseFeatures
-
 try:
     from django.db.backends import BaseDatabaseWrapper
 except ImportError:
@@ -47,10 +40,11 @@ from .client import DatabaseClient
 from .creation import DatabaseCreation
 from .introspection import DatabaseIntrospection
 from .operations import DatabaseOperations
+from .features import DatabaseFeatures
 
 import pyodbc
 
-from .schemaEditor import DB2SchemaEditor
+from .schema import DatabaseSchemaEditor
 
 import datetime
 from django.db import utils
@@ -73,47 +67,6 @@ NotSupportedError = pyodbc.NotSupportedError
 dbms_name = 'dbms_name'
 
 
-class DatabaseFeatures(BaseDatabaseFeatures):
-    can_use_chunked_reads = True
-
-    # Save point is supported by DB2.
-    uses_savepoints = True
-
-    # Custom query class has been implemented
-    # django.db.backends.db2.query.query_class.DB2QueryClass
-    uses_custom_query_class = True
-
-    # transaction is supported by DB2
-    supports_transactions = True
-
-    supports_tablespaces = True
-
-    uppercases_column_names = True
-    interprets_empty_strings_as_nulls = False
-    allows_primary_key_0 = True
-    can_defer_constraint_checks = False
-    supports_forward_references = False
-    requires_rollback_on_dirty_transaction = True
-    supports_regex_backreferencing = True
-    supports_timezones = False
-    has_bulk_insert = False
-    has_select_for_update = True
-    supports_long_model_names = False
-    can_distinct_on_fields = False
-    supports_paramstyle_pyformat = False
-    supports_sequence_reset = True
-    # DB2 doesn't take default values as parameter
-    requires_literal_defaults = True
-    has_case_insensitive_like = True
-    can_introspect_big_integer_field = True
-    can_introspect_boolean_field = False
-    can_introspect_positive_integer_field = False
-    can_introspect_small_integer_field = True
-    can_introspect_null = True
-    can_introspect_ip_address_field = False
-    can_introspect_time_field = True
-
-
 class DatabaseValidation(BaseDatabaseValidation):
     # Need to do validation for IBM i and pyodbc version
     def validate_field(self, errors, opts, f):
@@ -123,11 +76,8 @@ class DatabaseValidation(BaseDatabaseValidation):
 class DatabaseWrapper(BaseDatabaseWrapper):
     """
     This is the base class for DB2 backend support for Django. The under lying
-    wrapper is pydobc.
+    wrapper is pyodbc.
     """
-
-    def _start_transaction_under_autocommit(self):
-        pass
 
     data_types = {
         # DB2 Specific
@@ -176,7 +126,8 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'PositiveSmallIntegerField': '%(attname)s >= 0',
     }
 
-    vendor = 'DB2/400 SQL'
+    vendor = 'DB2'
+
     operators = {
         "exact":        "= %s",
         "iexact":       "LIKE %s ESCAPE '\\'",
@@ -193,6 +144,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     }
 
     Database = pyodbc
+    SchemaEditorClass = DB2SchemaEditor
 
     client_class = DatabaseClient
     creation_class = DatabaseCreation
@@ -200,7 +152,24 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     introspection_class = DatabaseIntrospection
     validation_class = DatabaseValidation
     ops_class = DatabaseOperations
-    SchemaEditorClass = DB2SchemaEditor
+
+    # Constructor of DB2 backend support. Initializing all other classes.
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.ops = DatabaseOperations(self)
+        self.client = DatabaseClient(self)
+        self.features = DatabaseFeatures(self)
+        self.creation = DatabaseCreation(self)
+        self.introspection = DatabaseIntrospection(self)
+        self.validation = DatabaseValidation(self)
+        self.databaseWrapper = DatabaseWrapper()
+
+    # Method to check if connection is live or not.
+    def __is_connection(self):
+        return self.connection is not None
+    
+    def _start_transaction_under_autocommit(self):
+        pass
 
     # To get dict of connection parameters
     def get_connection_params(self):
@@ -220,7 +189,8 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         if 'OPTIONS' in settings_dict:
             conn_params.update(settings_dict['OPTIONS'])
 
-        allowed_opts = {'system', 'user', 'password', 'autocommit', 'readonly',
+        allowed_opts = {'system', 'user', 'password', 'autocommit',
+                        'readonly',
                         'timeout', 'database', 'use_system_naming',
                         'library_list', 'current_schema'
                         }
@@ -238,17 +208,21 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         if 'current_schema' in conn_params or 'library_list' in conn_params:
             conn_params['DefaultLibraries'] = \
                 conn_params.pop('current_schema', '') + ','
-            if isinstance(conn_params["DefaultLibraries"], str):
-                conn_params['DefaultLibraries'] += \
-                    conn_params.pop('library_list', '')
+            library_list = conn_params.pop('library_list', '')
+            if isinstance(library_list, str):
+                conn_params['DefaultLibraries'] += library_list
             else:
-                conn_params['DefaultLibraries'] += ','.join(
-                    conn_params.pop('library_list', ''))
+                conn_params['DefaultLibraries'] += ','.join(library_list)
 
         return conn_params
 
+    # To get new connection from Database
+    def get_new_connection(self, conn_params):
+        return pyodbc.connect("Driver=IBM i Access ODBC Driver; UNICODESQL=1; TRUEAUTOCOMMIT=1;", **conn_params)
+
     def create_cursor(self, name=None):
-        return DB2CursorWrapper(self.connection)
+        cursor = self.connection.cursor()
+        return DB2CursorWrapper(cursor, self.connection)
 
     def init_connection_state(self):
         pass
@@ -281,27 +255,25 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         return result.fetchone()[0]
 
 
-class DB2CursorWrapper(pyodbc.Cursor):
+class DB2CursorWrapper:
     """
     This is the wrapper around pyodbc in order to support format parameter style
     pyodbc supports qmark, where as Django support format style,
     hence this conversion is required.
     """
 
-    def __init__(self, connection):
-        super().__init__(connection.conn_handler, connection)
+    def __init__(self, cursor, conn):
+        self.cursor = cursor
+        self.conn = conn
+
+    def __getattr__(self, attr):
+        return getattr(self.cursor, attr)
 
     def __iter__(self):
-        return self
+        return iter(self.cursor)
 
-    def next(self):
-        row = self.fetchone()
-        if row is None:
-            raise StopIteration
-        return row
-
-    def _create_instance(self, connection):
-        return DB2CursorWrapper(connection)
+    def __next__(self):
+        return next(self.cursor)
 
     def _format_parameters(self, parameters):
         parameters = list(parameters)
@@ -337,7 +309,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
             parameters = self._format_parameters(parameters)
 
             try:
-                super().execute(operation, parameters)
+                result = self.cursor.execute(operation, parameters)
                 if doReorg == 1:
                     return self._reorg_tables()
             except IntegrityError as e:
@@ -363,7 +335,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
             seq_parameters = [self._format_parameters(parameters) for
                               parameters in seq_parameters]
             try:
-                return super().executemany(operation, seq_parameters)
+                return self.cursor.executemany(operation, seq_parameters)
             except IntegrityError as e:
                 raise utils.IntegrityError(*e.args) from e
 
@@ -379,19 +351,19 @@ class DB2CursorWrapper(pyodbc.Cursor):
         res = []
         reorgSQLs = []
         parameters = ()
-        super().execute(checkReorgSQL, parameters)
-        res = super().fetchall()
+        self.cursor.execute(checkReorgSQL, parameters)
+        res = self.cursor.fetchall()
         if res:
             for sName, tName in res:
                 reorgSQL = '''CALL SYSPROC.ADMIN_CMD('REORG TABLE "%(sName)s"."%(tName)s"')''' % {
                     'sName': sName, 'tName': tName}
                 reorgSQLs.append(reorgSQL)
             for sql in reorgSQLs:
-                super().execute(sql)
+                self.cursor.execute(sql)
 
     # Over-riding this method to modify result set containing datetime and time zone support is active
     def fetchone(self):
-        row = super().fetchone()
+        row = self.cursor.fetchone()
         if row is None:
             return row
         else:
@@ -399,7 +371,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
     # Over-riding this method to modify result set containing datetime and time zone support is active
     def fetchmany(self, size=0):
-        rows = super().fetchmany(size)
+        rows = self.cursor.fetchmany(size)
         if rows is None:
             return rows
         else:
@@ -407,7 +379,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
 
     # Over-riding this method to modify result set containing datetime and time zone support is active
     def fetchall(self):
-        rows = super().fetchall()
+        rows = self.cursor.fetchall()
         if rows is None:
             return rows
         else:
@@ -417,7 +389,7 @@ class DB2CursorWrapper(pyodbc.Cursor):
     def _fix_return_data(self, row):
         row = list(row)
         index = -1
-        for value, desc in zip(row, self.description):
+        for value, desc in zip(row, self.cursor.description):
             index = index + 1
             if (desc[1] == pyodbc.DATETIME):
                 if settings.USE_TZ and value is not None and timezone.is_naive(

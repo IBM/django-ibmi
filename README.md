@@ -1,3 +1,5 @@
+[![GitHub Actions status | sdras/awesome-actions](https://github.com/IBM/django-ibmi/workflows/Python%20package/badge.svg)](https://github.com/IBM/django-ibmi/actions?workflow=Python+package)
+
 # Django Adapter for IBM i 
 
 [IBM i](https://en.wikipedia.org/wiki/IBM_i) support for the [Django](https://www.djangoproject.com/) application framework.
