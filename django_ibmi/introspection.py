@@ -68,7 +68,9 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         schema = self.connection.get_current_schema()
         for fk in cursor.cursor.foreign_keys(schema=schema, table=table_name):
             relations[self.__get_col_index(cursor, schema, table_name, fk.fkcolumn_name)] = (
-                self.__get_col_index(cursor, schema, fk.pktable_name, fk.pkcolumn_name), fk.pktable_name.lower())
+                self.__get_col_index(cursor, schema, fk.pktable_name, fk.pkcolumn_name),
+                fk.pktable_name.lower()
+            )
 
         return relations
 

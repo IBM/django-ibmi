@@ -18,7 +18,6 @@
 # +--------------------------------------------------------------------------+
 import datetime
 import pytz
-from django.db import utils
 from django.utils.timezone import is_aware, utc
 from django.db.backends.base.operations import BaseDatabaseOperations
 from django.conf import settings
@@ -29,7 +28,12 @@ class DatabaseOperations (BaseDatabaseOperations):
     compiler_module = "django_ibmi.compiler"
 
     def cache_key_culling_sql(self):
-        return '''SELECT cache_key FROM (SELECT cache_key, ( ROW_NUMBER() OVER() ) AS ROWNUM FROM %s ORDER BY cache_key)
+        return '''SELECT cache_key
+            FROM (
+                SELECT cache_key, (ROW_NUMBER() OVER()) AS ROWNUM
+                FROM %s
+                ORDER BY cache_key
+            )
             WHERE ROWNUM = %%s + 1'''
 
     def check_aggregate_support(self, aggregate):
@@ -86,7 +90,7 @@ class DatabaseOperations (BaseDatabaseOperations):
             return super().combine_expression(operator, sub_expressions)
 
     @staticmethod
-    def convert_binaryfield_value(value, expression, connections,context):
+    def convert_binaryfield_value(value, expression, connections, context):
         return value
 
     @staticmethod
@@ -285,20 +289,22 @@ class DatabaseOperations (BaseDatabaseOperations):
                         DECLARE fkconst varchar(128);
                         DECLARE row_count integer;
                         DECLARE alter_fkey_sql varchar(350);
-                        DECLARE cur1 CURSOR for SELECT %(fk_tab)s, %(fk_const)s FROM %(fk_systab)s WHERE %(type_check_string)s
-                        %(fk_tabschema)s = curr_schema and ENFORCED = 'N';
-                        DECLARE cur2 CURSOR for SELECT %(fk_tab)s, %(fk_const)s FROM %(fk_systab)s WHERE %(type_check_string)s
-                        %(fk_tab)s = django_tabname and %(fk_tabschema)s = curr_schema and ENFORCED = 'Y';
+                        DECLARE cur1 CURSOR for SELECT %(fk_tab)s, %(fk_const)s FROM %(fk_systab)s
+                            WHERE %(type_check_string)s %(fk_tabschema)s = curr_schema and ENFORCED = 'N';
+                        DECLARE cur2 CURSOR for SELECT %(fk_tab)s, %(fk_const)s FROM %(fk_systab)s
+                            WHERE %(type_check_string)s %(fk_tab)s = django_tabname and
+                                  %(fk_tabschema)s = curr_schema and ENFORCED = 'Y';
                         IF ( django_tabname = '' ) THEN
                             SET row_count = 0;
-                            SELECT count( * ) INTO row_count FROM %(fk_systab)s WHERE %(type_check_string)s %(fk_tabschema)s =
-                            curr_schema and ENFORCED = 'N';
+                            SELECT count( * ) INTO row_count FROM %(fk_systab)s
+                                WHERE %(type_check_string)s %(fk_tabschema)s = curr_schema and ENFORCED = 'N';
                             IF ( row_count > 0 ) THEN
                                 OPEN cur1;
                                 WHILE( row_count > 0 ) DO
                                     FETCH cur1 INTO fktable, fkconst;
                                     IF ( LOCATE( ' ', fktable ) > 0 ) THEN
-                                        SET alter_fkey_sql = 'ALTER TABLE ' || '\"' || fktable || '\"' ||' ALTER FOREIGN KEY ';
+                                        SET alter_fkey_sql = 'ALTER TABLE ' || '\"' || fktable || '\"' ||
+                                            ' ALTER FOREIGN KEY ';
                                     ELSE
                                         SET alter_fkey_sql = 'ALTER TABLE ' || fktable || ' ALTER FOREIGN KEY ';
                                     END IF;
@@ -314,19 +320,22 @@ class DatabaseOperations (BaseDatabaseOperations):
                             END IF;
                         ELSE
                             SET row_count = 0;
-                            SELECT count( * ) INTO row_count FROM %(fk_systab)s WHERE %(type_check_string)s %(fk_tab)s =
-                            django_tabname and %(fk_tabschema)s = curr_schema and ENFORCED = 'Y';
+                            SELECT count( * ) INTO row_count FROM %(fk_systab)s
+                                WHERE %(type_check_string)s %(fk_tab)s = django_tabname and
+                                      %(fk_tabschema)s = curr_schema and ENFORCED = 'Y';
                             IF ( row_count > 0 ) THEN
                                 OPEN cur2;
                                 WHILE( row_count > 0 ) DO
                                     FETCH cur2 INTO fktable, fkconst;
                                     IF ( LOCATE( ' ', fktable ) > 0 ) THEN
-                                        SET alter_fkey_sql = 'ALTER TABLE ' || '\"' || fktable || '\"' ||' ALTER FOREIGN KEY ';
+                                        SET alter_fkey_sql = 'ALTER TABLE ' || '\"' || fktable || '\"' ||
+                                            ' ALTER FOREIGN KEY ';
                                     ELSE
                                         SET alter_fkey_sql = 'ALTER TABLE ' || fktable || ' ALTER FOREIGN KEY ';
                                     END IF;
                                     IF ( LOCATE( ' ', fkconst ) > 0) THEN
-                                        SET alter_fkey_sql = alter_fkey_sql || '\"' || fkconst || '\"' || ' NOT ENFORCED';
+                                        SET alter_fkey_sql = alter_fkey_sql || '\"' || fkconst || '\"' ||
+                                            ' NOT ENFORCED';
                                     ELSE
                                         SET alter_fkey_sql = alter_fkey_sql || fkconst || ' NOT ENFORCED';
                                     END IF;

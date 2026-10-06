@@ -41,10 +41,9 @@ from .creation import DatabaseCreation
 from .introspection import DatabaseIntrospection
 from .operations import DatabaseOperations
 from .features import DatabaseFeatures
+from .schema import DatabaseSchemaEditor
 
 import pyodbc
-
-from .schema import DatabaseSchemaEditor
 
 import datetime
 from django.db import utils
@@ -144,7 +143,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     }
 
     Database = pyodbc
-    SchemaEditorClass = DB2SchemaEditor
+    SchemaEditorClass = DatabaseSchemaEditor
 
     client_class = DatabaseClient
     creation_class = DatabaseCreation
@@ -167,7 +166,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     # Method to check if connection is live or not.
     def __is_connection(self):
         return self.connection is not None
-    
+
     def _start_transaction_under_autocommit(self):
         pass
 
@@ -244,10 +243,6 @@ class DatabaseWrapper(BaseDatabaseWrapper):
             self.connection.close()
             self.connection = None
 
-    def get_new_connection(self, conn_params):
-        return pyodbc.connect("Driver={%s}; UNICODESQL=1; TRUEAUTOCOMMIT=1;",
-                              **conn_params)
-
     def get_current_schema(self):
         schema_query = "VALUES CURRENT SCHEMA"
         cursor = self.connection.cursor()
@@ -309,7 +304,7 @@ class DB2CursorWrapper:
             parameters = self._format_parameters(parameters)
 
             try:
-                result = self.cursor.execute(operation, parameters)
+                self.cursor.execute(operation, parameters)
                 if doReorg == 1:
                     return self._reorg_tables()
             except IntegrityError as e:

@@ -53,8 +53,8 @@ class DatabaseClient(BaseDatabaseClient):
         if 'OPTIONS' in settings_dict:
             conn_params.update(settings_dict['OPTIONS'])
 
-        allowed_opts = {'system', 'user', 'password', 'autocommit', 'readonly','timeout', 'database', 'use_system_naming',
-                        'library_list', 'current_schema'
+        allowed_opts = {'system', 'user', 'password', 'autocommit', 'readonly', 'timeout', 'database',
+                        'use_system_naming', 'library_list', 'current_schema'
                         }
 
         if not allowed_opts.issuperset(conn_params.keys()):
@@ -103,8 +103,16 @@ class DatabaseClient(BaseDatabaseClient):
             cnxn.close()
 
         else:
-            args = ['%s -v -k "DRIVER=IBM i Access ODBC Driver; UNICODESQL=1; TRUEAUTOCOMMIT=1; SYSTEM=%s; UID=%s; PWD=%s"' %
-                    ('isql', settings_dict['NAME'], settings_dict['USER'], settings_dict['PASSWORD'])]
+            connstr = ";".join(
+                "DRIVER=IBM i Access ODBC Driver",
+                "UNICODESQL=1",
+                "TRUEAUTOCOMMIT=1",
+                "SYSTEM=" + settings_dict['NAME'],
+                "UID=" + settings_dict['USER'],
+                "PWD=" + settings_dict['PASSWORD'],
+            )
+
+            args = ['isql', '-v', '-k', connstr]
             try:
                 os.subprocess.call(args, shell=True)
             except KeyboardInterrupt:
