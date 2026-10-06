@@ -1,37 +1,50 @@
-[tool.poetry]
+[project]
 name = "django-ibmi"
-version = "0.1.0-dev"
 description = "Db2 for i adapter for Django"
-authors = [
-    "Naveen Ram  <naveen.ram@ibm.com>",
-    "Kevin Adler <kadler@us.ibm.com>"
-]
-readme = "README.md"
 license = "Apache-2.0"
 keywords = ["django", "web framework", "ibm", "ibmi", "db2"]
+version = "0.1.0-dev"
+dynamic = ["classifiers"]
+readme = "README.md"
+authors = [
+    {name = "Korinne Adler", email = "kadler@us.ibm.com"},
+    {name = "Naveen Ram ", email = "naveen.ram@ibm.com"}
+]
+requires-python = '>=3.10'
+dependencies = [
+    'Django (>=5.2)',
+    'pyodbc (>=5.0)',
+    'pytz'
+]
+
+[dependency-groups]
+test = [
+    "pytest >=7.2.1; python_version>='3.11'",
+    "pytest >=6.2.5; python_version~='3.10'",
+]
+lint = [
+    "flake8",
+]
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+]
+
+[project.entry-points."django.db.backends"]
+django_ibmi = "django_ibmi"
+
+[tool.poetry]
 classifiers =[
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
-    "Framework :: Django :: 2.2",
-    "Framework :: Django :: 3.0",
-    "Framework :: Django :: 3.1",
+    "Framework :: Django :: 5.2",
 ]
 packages = [
     {include = "django_ibmi"}
 ]
-
-[tool.poetry.dependencies]
-python = ">=3.5"
-Django = ">=2.2"
-pyodbc = ">=4.0"
-pytz = "*"
-
-[tool.poetry.plugins."django.db.backends"]
-django_ibmi = "django_ibmi"
-
-[tool.poetry.dev-dependencies]
+requires-poetry = '>=2.0,<3.0'
 
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["poetry-core (>=2.0.0,<3.0.0)"]
+build-backend = "poetry.core.masonry.api"
