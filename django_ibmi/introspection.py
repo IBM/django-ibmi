@@ -15,6 +15,8 @@
 # +--------------------------------------------------------------------------+
 # | Authors: Ambrish Bhargava, Tarun Pasrija, Rahul Priyadarshi              |
 # +--------------------------------------------------------------------------+
+import pyodbc
+
 from collections import namedtuple
 from django.db import models
 from django.db.backends.base.introspection import BaseDatabaseIntrospection, FieldInfo
@@ -27,7 +29,25 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
     """
 
     data_types_reverse = {
-        # TODO define reverse data types
+        pyodbc.SQL_CHAR: "CharField",
+        pyodbc.SQL_VARCHAR: "CharField",
+        pyodbc.SQL_BINARY: "BinaryField",
+        pyodbc.SQL_VARBINARY: "BinaryField",
+        pyodbc.SQL_LONGVARCHAR: "TextField",
+        pyodbc.SQL_LONGVARBINARY: "BinaryField",
+        pyodbc.SQL_NUMERIC: "DecimalField",
+        pyodbc.SQL_DECIMAL: "DecimalField",
+        pyodbc.SQL_BIGINT: "BigIntegerField",
+        pyodbc.SQL_INTEGER: "IntegerField",
+        pyodbc.SQL_SMALLINT: "SmallIntegerField",
+        pyodbc.SQL_REAL: "FloatField",
+        pyodbc.SQL_DOUBLE: "FloatField",
+        pyodbc.SQL_TYPE_DATE: "DateField",
+        pyodbc.SQL_TYPE_TIME: "TimeField",
+        pyodbc.SQL_TYPE_TIMESTAMP: "DateTimeField",
+        pyodbc.SQL_WCHAR: "CharField",
+        pyodbc.SQL_WVARCHAR: "CharField",
+        pyodbc.SQL_WLONGVARCHAR: "TextField",
     }
 
     # Converting table name to lower case.
