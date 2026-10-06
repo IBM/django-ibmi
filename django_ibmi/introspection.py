@@ -67,6 +67,7 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
 
     # Getting the description of the table.
     def get_table_description(self, cursor, table_name):
+        # TODO: This should be able to get all the info from QSYS2.SYSCOLUMNS2
         qn = self.connection.ops.quote_name
         schema = self.connection.get_current_schema()
         sql = "SELECT TYPE FROM QSYS2.SYSTABLES WHERE TABLE_SCHEMA='%s' AND TABLE_NAME='%s'" % \
