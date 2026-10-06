@@ -113,7 +113,6 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     can_introspect_ip_address_field = False
     can_introspect_time_field = True
 
-
 class DatabaseValidation(BaseDatabaseValidation):
     # Need to do validation for IBM i and pyodbc version
     def validate_field(self, errors, opts, f):

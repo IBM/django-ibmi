@@ -33,7 +33,7 @@ Error = pyodbc.Error
 
 class DB2SchemaEditor(BaseDatabaseSchemaEditor):
     def quote_value(self, value):
-        pass
+        return value
 
     psudo_column_prefix = 'psudo_'
     sql_delete_table = "DROP TABLE %(table)s"

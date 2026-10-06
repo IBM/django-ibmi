@@ -16,7 +16,8 @@
 # | Authors: Ambrish Bhargava, Tarun Pasrija, Rahul Priyadarshi,             |
 # | Hemlata Bhatt, Vyshakh A                                                 |
 # +--------------------------------------------------------------------------+
-import datetime, pytz
+import datetime
+import pytz
 from django.db import utils
 from django.utils.timezone import is_aware, utc
 from django.db.backends.base.operations import BaseDatabaseOperations
@@ -108,13 +109,13 @@ class DatabaseOperations (BaseDatabaseOperations):
         if td.days is -1:
             minute = (td.seconds % (60 * 60)) / 60 - 60
             if minute:
-                hr = td.seconds / (60 * 60) - 23
+                hour = td.seconds / (60 * 60) - 23
             else:
-                hr = td.seconds / (60 * 60) - 24
+                hour = td.seconds / (60 * 60) - 24
         else:
-            hr = td.seconds / (60 * 60)
+            hour = td.seconds / (60 * 60)
             minute = (td.seconds % (60 * 60)) / 60
-        return hr, minute
+        return hour, minute
 
     # Function to extract time zone-aware day, month or day of week from
     # timestamps
@@ -177,17 +178,16 @@ class DatabaseOperations (BaseDatabaseOperations):
         return " %d days + %d seconds + %d microseconds" % (
             timedelta.days, timedelta.seconds, timedelta.microseconds), []
 
-    # As casting is not required, so nothing is required to do in this function.
     def datetime_cast_date_sql(self, field_name, tzname):
-        return "%s"
+        return "CAST(%s as DATE)"
+
+    def datetime_cast_time_sql(self, field_name, tzname):
+        return "CAST(%s as TIME)"
 
     def deferrable_sql(self):
         return "ON DELETE NO ACTION NOT ENFORCED"
 
-    def datetime_cast_time_sql(self, field_name, tzname):
-        return "%s"
-
-    def time_trunc_sql(self, lookup_type, field_name):
+    def time_trunc_sql(self, lookup_type, field_name, tzname=None):
         sql = "TIMESTAMP(SUBSTR(CHAR(%s), 1, %d) || '%s')"
         if lookup_type.upper() == 'SECOND':
             sql = sql % (field_name, 19, '.000000')
@@ -214,7 +214,7 @@ class DatabaseOperations (BaseDatabaseOperations):
     def last_insert_id(self, cursor, table_name, pk_name):
         operation = 'SELECT IDENTITY_VAL_LOCAL() FROM SYSIBM.SYSDUMMY1'
         result = cursor.execute(operation)
-        return result.fetchone()[0]
+        return result.fetchval()
 
     # In case of WHERE clause, if the search is required to be case
     # insensitive then converting left hand side field to upper.
@@ -234,17 +234,10 @@ class DatabaseOperations (BaseDatabaseOperations):
         return None
 
     def quote_name(self, name):
-        name = name.upper()
-        if name.startswith("\"") & name.endswith("\""):
+        if name.startswith("\"") and name.endswith("\""):
             return name
 
-        if name.startswith("\""):
-            return "%s\"" % name
-
-        if name.endswith("\""):
-            return "\"%s" % name
-
-        return "\"%s\"" % name
+        return f"\"{name}\""
 
     # SQL to return RANDOM number.
     # Reference: http://publib.boulder.ibm.com/infocenter/db2luw/v8/topic/com.
@@ -478,13 +471,8 @@ class DatabaseOperations (BaseDatabaseOperations):
             bulk_values_sql = "VALUES " + ", ".join([values_sql] * len(num_values))
         return bulk_values_sql
 
-    def for_update_sql(self, nowait=False, skip_locked=False, of=()):
-        # DB2 doesn't support nowait select for update
-        if nowait:
-            raise utils.DatabaseError(
-                "Nowait Select for update not supported ")
-        else:
-            return 'WITH RS USE AND KEEP UPDATE LOCKS'
+    def for_update_sql(self, nowait=False, skip_locked=False, of=(), no_key=False):
+        return 'WITH RS USE AND KEEP UPDATE LOCKS'
 
     def distinct_sql(self, fields, params):
         if fields:
